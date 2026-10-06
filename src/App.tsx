@@ -75,7 +75,7 @@ function App() {
                 </Route>
               </Routes>
             </BrowserRouter>
-            <Toaster position="top-right" />
+            <Toaster position="bottom-right" />
           </CommandProvider>
         </BudgetProvider>
       </AuthProvider>
