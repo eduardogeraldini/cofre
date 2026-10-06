@@ -1,13 +1,16 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   AlertTriangle,
+  Copy,
   Download,
   Eye,
   EyeOff,
+  KeyRound,
   Monitor,
   Moon,
   RotateCcw,
   Sun,
+  Trash2,
   Upload,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -26,9 +29,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { SegmentedControl } from '@/components/segmented-control'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/store/auth-store'
 import { useBudget } from '@/store/budget-store'
 import type { AppState } from '@/types'
 
@@ -51,9 +57,104 @@ const palette = [
 
 export function SettingsPage() {
   const { state, dispatch, reset } = useBudget()
+  const { session } = useAuth()
   const { theme, setTheme } = useTheme()
   const fileRef = useRef<HTMLInputElement>(null)
   const [resetOpen, setResetOpen] = useState(false)
+  const [tokens, setTokens] = useState<IntegrationToken[]>([])
+  const [tokenLabel, setTokenLabel] = useState('iPhone')
+  const [createdToken, setCreatedToken] = useState<string | null>(null)
+  const [tokenBusy, setTokenBusy] = useState(false)
+
+  const refreshStatus = useCallback(async () => {
+    const { data, error } = await supabase()
+      .from('integration_tokens')
+      .select('id, label, created_at, last_used_at')
+      .order('created_at', { ascending: false })
+    if (error) {
+      toast.error('Não foi possível carregar a integração', { description: integrationHint(error) })
+      return
+    }
+    setTokens((data ?? []) as IntegrationToken[])
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    void supabase()
+      .from('integration_tokens')
+      .select('id, label, created_at, last_used_at')
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) {
+          toast.error('Não foi possível carregar a integração', {
+            description: integrationHint(error),
+          })
+          return
+        }
+        setTokens((data ?? []) as IntegrationToken[])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const generateToken = async () => {
+    const userId = session?.userId
+    if (!userId) {
+      toast.error('Sessão expirada', { description: 'Entre de novo para gerar tokens.' })
+      return
+    }
+    setTokenBusy(true)
+    try {
+      const bytes = new Uint8Array(24)
+      crypto.getRandomValues(bytes)
+      const token = 'cofre_sk_' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
+      const tokenHash = Array.from(new Uint8Array(digest), (b) =>
+        b.toString(16).padStart(2, '0'),
+      ).join('')
+      const { error } = await supabase().from('integration_tokens').insert({
+        user_id: userId,
+        label: tokenLabel.trim() || 'iPhone',
+        token_hash: tokenHash,
+      })
+      if (error) {
+        toast.error('Não foi possível gerar o token', { description: integrationHint(error) })
+        return
+      }
+      setCreatedToken(token)
+      setTokenLabel('iPhone')
+      toast.success('Token gerado')
+      await refreshStatus()
+    } finally {
+      setTokenBusy(false)
+    }
+  }
+
+  const deleteToken = async (id: string) => {
+    const { data, error } = await supabase()
+      .from('integration_tokens')
+      .delete()
+      .eq('id', id)
+      .select('id')
+    if (error) {
+      toast.error('Não foi possível apagar', { description: integrationHint(error) })
+      return
+    }
+    if (!data || data.length === 0) {
+      toast.error('Não foi possível apagar', { description: 'Token não encontrado.' })
+      return
+    }
+    toast.success('Token apagado')
+    await refreshStatus()
+  }
+
+  const copyToken = async () => {
+    if (!createdToken) return
+    await navigator.clipboard.writeText(createdToken)
+    toast.success('Token copiado')
+  }
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
@@ -217,6 +318,82 @@ export function SettingsPage() {
       <Card className="gap-0">
         <CardHeader className="border-b border-border pb-4">
           <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+            Acesso rápido (iPhone)
+          </CardTitle>
+          <CardDescription>
+            Gere tokens para o Atalho do iPhone registrar gastos direto na sua conta, sem senha.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 pt-5">
+          {createdToken ? (
+            <div className="rounded-md border border-border bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">
+                Novo token (exibido apenas uma vez — guarde-o agora):
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <code className="min-w-0 flex-1 truncate font-mono text-sm">{createdToken}</code>
+                <Button variant="outline" size="sm" onClick={() => void copyToken()}>
+                  <Copy />
+                  Copiar
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="token-label">Nome</Label>
+              <Input
+                id="token-label"
+                value={tokenLabel}
+                onChange={(event) => setTokenLabel(event.target.value)}
+                placeholder="iPhone"
+                className="h-9 w-44"
+              />
+            </div>
+            <Button onClick={() => void generateToken()} disabled={tokenBusy}>
+              <KeyRound />
+              Gerar token
+            </Button>
+          </div>
+
+          {tokens.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum token gerado ainda.</p>
+          ) : (
+            <ul className="divide-y divide-border rounded-md border border-border">
+              {tokens.map((token) => (
+                <li key={token.id} className="flex items-center gap-3 px-3 py-2.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{token.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      Criado {formatTokenDate(token.created_at)} ·{' '}
+                      {token.last_used_at
+                        ? `último uso ${formatTokenDate(token.last_used_at)}`
+                        : 'nunca usado'}
+                    </span>
+                  </span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => void deleteToken(token.id)}
+                  >
+                    <Trash2 />
+                    Apagar
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            O token aparece só no momento da criação — apenas o hash dele fica salvo no banco.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="gap-0">
+        <CardHeader className="border-b border-border pb-4">
+          <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
             Sobre
           </CardTitle>
           <CardDescription>Interface construída sobre o sistema de design Genesis.</CardDescription>
@@ -306,4 +483,31 @@ function DataPoint({ label, value }: { label: string; value: string }) {
       </dd>
     </div>
   )
+}
+
+interface IntegrationToken {
+  id: string
+  label: string
+  created_at: string
+  last_used_at: string | null
+}
+
+function integrationHint(error: { code?: string | null; message: string }): string {
+  if (
+    error.code === '42P01' ||
+    error.code === 'PGRST205' ||
+    /integration_tokens|schema cache/i.test(error.message)
+  ) {
+    return 'Rode supabase/integration.sql no SQL Editor do Supabase e tente novamente.'
+  }
+  return error.message
+}
+
+function formatTokenDate(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
