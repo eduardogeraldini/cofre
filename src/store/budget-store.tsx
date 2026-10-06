@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner'
 import type { AppState, Category, Settings, Transaction } from '@/types'
 import { createOnboardingState } from '@/lib/seed'
+import { readStateSnapshot, writeStateSnapshot } from '@/lib/offline-state'
 import { loadRemoteState, pushFullState, syncDiff } from '@/lib/remote'
 import { useAuth } from '@/store/auth-store'
 
@@ -147,7 +148,13 @@ function BudgetProviderInner({
       } catch (error) {
         console.error('Supabase: falha ao carregar dados', error)
         if (!cancelled) {
-          toast.error('Não foi possível carregar seus dados do Supabase.')
+          const snapshot = readStateSnapshot()
+          if (snapshot) {
+            dispatch({ type: 'state/import', state: snapshot })
+            toast.warning('Sem conexão — exibindo os últimos dados salvos.')
+          } else {
+            toast.error('Não foi possível carregar seus dados do Supabase.')
+          }
           setHydrated(true)
         }
       }
@@ -193,6 +200,11 @@ function BudgetProviderInner({
   useEffect(() => {
     flushRef.current = flush
   }, [flush])
+
+  useEffect(() => {
+    if (!remoteUserId || !syncEnabled) return
+    writeStateSnapshot(state)
+  }, [state, remoteUserId, syncEnabled])
 
   useEffect(() => {
     if (!remoteUserId || !syncEnabled) return
