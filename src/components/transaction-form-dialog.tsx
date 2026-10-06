@@ -3,8 +3,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { parseISO } from 'date-fns'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import {
   Dialog,
   DialogContent,
@@ -198,7 +200,14 @@ export function TransactionFormDialog({
                 control={control}
                 name="date"
                 render={({ field }) => (
-                  <Input id="date" type="date" aria-invalid={Boolean(errors.date)} {...field} />
+                  <DatePicker
+                    id="date"
+                    value={field.value ? parseISO(field.value) : undefined}
+                    onChange={(date) => {
+                      if (date) field.onChange(toISODate(date))
+                    }}
+                    aria-invalid={Boolean(errors.date)}
+                  />
                 )}
               />
               {errors.date ? (
