@@ -5,7 +5,7 @@
 //
 // POST https://<ref>.supabase.co/functions/v1/registrar-gasto
 //   { token, texto }                                             -> análise (dry run)
-//   { token, confirmar, amount, category_id, note, date }         -> grava o gasto
+//   { token, confirmar, amount, category_id, wallet_id?, note, date }  -> grava o gasto
 //
 // Erros de negócio voltam HTTP 200 com { ok: false, message }, para o
 // Atalho do iPhone conseguir exibir a mensagem.
@@ -116,6 +116,29 @@ Deno.serve(async (req) => {
       const note = String(body.note ?? '').slice(0, 140);
       const id = crypto.randomUUID();
 
+      // Carteira: usa a informada; senão, a mais antiga do usuário (ou null).
+      let walletId: string | null = null;
+      const resolveWallet = async (query: string): Promise<string | null> => {
+        try {
+          const res = await rest(query);
+          if (!res.ok) return null;
+          const rows = (await res.json().catch(() => null)) as Array<{ id: string }> | null;
+          return Array.isArray(rows) && rows.length > 0 ? rows[0].id : null;
+        } catch {
+          return null;
+        }
+      };
+      if (typeof body.wallet_id === 'string' && body.wallet_id !== '') {
+        walletId = await resolveWallet(
+          `wallets?user_id=eq.${userId}&id=eq.${body.wallet_id}&select=id`,
+        );
+      }
+      if (!walletId) {
+        walletId = await resolveWallet(
+          `wallets?user_id=eq.${userId}&select=id&order=created_at.asc&limit=1`,
+        );
+      }
+
       const ins = await rest('transactions', {
         method: 'POST',
         headers: { prefer: 'return=minimal' },
@@ -125,6 +148,7 @@ Deno.serve(async (req) => {
           type: 'expense',
           amount,
           category_id: cat.id,
+          wallet_id: walletId,
           date,
           note,
         }),

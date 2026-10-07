@@ -12,11 +12,11 @@ interface MoneyProps {
 export function Money({ value, className, signed = false, compact = false }: MoneyProps) {
   const { state } = useBudget()
   const privacy = state.settings.privacyMode
+  const useCompact =
+    !privacy &&
+    (compact || (state.settings.compactValues === true && Math.abs(value) >= 1000))
 
-  const text =
-    compact && !privacy
-      ? formatCompact(Math.abs(value))
-      : formatCurrency(Math.abs(value), privacy)
+  const text = useCompact ? formatCompact(Math.abs(value)) : formatCurrency(Math.abs(value), privacy)
 
   const prefix = signed ? (value > 0 ? '+ ' : value < 0 ? '− ' : '') : value < 0 ? '− ' : ''
 

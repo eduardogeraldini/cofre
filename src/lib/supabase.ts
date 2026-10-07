@@ -9,7 +9,7 @@ let client: SupabaseClient | null = null
 
 export function supabase(): SupabaseClient {
   if (!isSupabaseConfigured) {
-    throw new Error('Supabase não configurado — defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY')
+    throw new Error('Serviço não configurado.')
   }
   if (!client) {
     client = createClient(supabaseUrl as string, supabaseAnonKey as string)

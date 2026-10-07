@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { toast } from 'sonner'
-import type { AppState, Category, Settings, Transaction } from '@/types'
+import type { AppState, Category, Settings, Transaction, Transfer, Wallet } from '@/types'
 import { createOnboardingState } from '@/lib/seed'
 import { readStateSnapshot, writeStateSnapshot } from '@/lib/offline-state'
 import { loadRemoteState, pushFullState, syncDiff } from '@/lib/remote'
@@ -20,6 +20,11 @@ type Action =
   | { type: 'transaction/add'; transaction: Transaction }
   | { type: 'transaction/update'; transaction: Transaction }
   | { type: 'transaction/delete'; id: string }
+  | { type: 'wallet/add'; wallet: Wallet }
+  | { type: 'wallet/update'; wallet: Wallet }
+  | { type: 'wallet/delete'; id: string }
+  | { type: 'transfer/add'; transfer: Transfer }
+  | { type: 'transfer/delete'; id: string }
   | { type: 'budget/set'; categoryId: string; limit: number }
   | { type: 'category/add'; category: Category }
   | { type: 'category/update'; category: Category }
@@ -46,6 +51,30 @@ function reducer(state: AppState, action: Action): AppState {
       }
     case 'transaction/delete':
       return { ...state, transactions: state.transactions.filter((tx) => tx.id !== action.id) }
+    case 'wallet/add':
+      return { ...state, wallets: [...state.wallets, action.wallet] }
+    case 'wallet/update':
+      return {
+        ...state,
+        wallets: state.wallets.map((wallet) =>
+          wallet.id === action.wallet.id ? action.wallet : wallet,
+        ),
+      }
+    case 'wallet/delete':
+      return {
+        ...state,
+        wallets: state.wallets.filter((wallet) => wallet.id !== action.id),
+        transfers: state.transfers.filter(
+          (transfer) => transfer.fromWalletId !== action.id && transfer.toWalletId !== action.id,
+        ),
+        transactions: state.transactions.map((tx) =>
+          tx.walletId === action.id ? { ...tx, walletId: null } : tx,
+        ),
+      }
+    case 'transfer/add':
+      return { ...state, transfers: [action.transfer, ...state.transfers] }
+    case 'transfer/delete':
+      return { ...state, transfers: state.transfers.filter((t) => t.id !== action.id) }
     case 'budget/set': {
       const budgets = { ...state.budgets }
       if (action.limit > 0) budgets[action.categoryId] = action.limit
@@ -153,7 +182,7 @@ function BudgetProviderInner({
             dispatch({ type: 'state/import', state: snapshot })
             toast.warning('Sem conexão — exibindo os últimos dados salvos.')
           } else {
-            toast.error('Não foi possível carregar seus dados do Supabase.')
+            toast.error('Não foi possível carregar seus dados.')
           }
           setHydrated(true)
         }
@@ -186,7 +215,7 @@ function BudgetProviderInner({
         console.error('Supabase: falha ao sincronizar', error)
         if (!notifiedRef.current) {
           notifiedRef.current = true
-          toast.error('Não foi possível salvar no Supabase — tentando novamente…')
+          toast.error('Não foi possível salvar seus dados — tentando novamente…')
         }
         if (mountedRef.current) {
           timerRef.current = window.setTimeout(() => {

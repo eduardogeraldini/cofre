@@ -8,7 +8,7 @@ export interface Session {
 
 function requireSupabase(): void {
   if (!isSupabaseConfigured) {
-    throw new Error('Supabase não configurado — preencha o arquivo .env com as chaves do projeto.')
+    throw new Error('Serviço indisponível no momento. Tente novamente mais tarde.')
   }
 }
 
@@ -17,7 +17,8 @@ function mapSignUpError(message: string): string {
   if (/at least 6/i.test(message)) return 'A senha precisa de pelo menos 6 caracteres'
   if (/valid email/i.test(message)) return 'E-mail inválido'
   if (/rate limit/i.test(message)) return 'Muitas tentativas — aguarde um instante e tente de novo'
-  return message
+  console.error('Falha no cadastro:', message)
+  return 'Não foi possível criar a conta. Tente novamente.'
 }
 
 function mapSignInError(message: string): string {

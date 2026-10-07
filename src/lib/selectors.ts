@@ -18,6 +18,33 @@ export function totalBalance(transactions: Transaction[]): number {
   )
 }
 
+export function walletBalance(state: AppState, walletId: string): number {
+  const wallet = state.wallets.find((item) => item.id === walletId)
+  if (!wallet) return 0
+
+  let total = wallet.initialBalance
+  for (const tx of state.transactions) {
+    if (tx.walletId !== walletId) continue
+    total += tx.type === 'income' ? tx.amount : -tx.amount
+  }
+  for (const transfer of state.transfers) {
+    if (transfer.toWalletId === walletId) total += transfer.amount
+    if (transfer.fromWalletId === walletId) total -= transfer.amount
+  }
+  return total
+}
+
+export function totalWealth(state: AppState): number {
+  return state.wallets.reduce((total, wallet) => total + walletBalance(state, wallet.id), 0)
+}
+
+export function walletMonthFlow(state: AppState, walletId: string, key: string) {
+  const txs = transactionsInMonth(state.transactions, key).filter(
+    (tx) => tx.walletId === walletId,
+  )
+  return { income: sumByType(txs, 'income'), expense: sumByType(txs, 'expense') }
+}
+
 export function balanceBefore(transactions: Transaction[], key: string): number {
   return transactions
     .filter((tx) => monthKey(tx.date) < key)

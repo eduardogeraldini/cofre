@@ -1,5 +1,5 @@
 // E2E REST do gasto rápido: tokens de acesso + Edge Function + gravação do gasto.
-// Requer: .env apontando para o Supabase, schema.sql + integration.sql executados,
+// Requer: .env apontando para o Supabase, schema.sql executado,
 //         supabase secrets set GEMINI_API_KEY=… e supabase functions deploy registrar-gasto.
 // Uso: npm test
 import { createHash, randomBytes } from 'node:crypto';
@@ -48,6 +48,56 @@ const sha256hex = (s) => createHash('sha256').update(s).digest('hex');
     body: JSON.stringify({ user_id: uid, id: 'outros', name: 'Outros', type: 'expense' }),
   }, at);
   check('criar categoria expense (RLS propria)', cat.status === 201, cat.status);
+
+  const w1 = await q('wallets', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ user_id: uid, name: 'Nubank E2E', color: 'emerald', initial_balance: 100 }),
+  }, at);
+  check('criar carteira -> 201', w1.status === 201 && Array.isArray(w1.data) && w1.data.length === 1, w1.status);
+  const w2 = await q('wallets', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ user_id: uid, name: 'Poupanca E2E', color: 'sky', initial_balance: 0 }),
+  }, at);
+  check('criar carteira 2 -> 201', w2.status === 201, w2.status);
+  const idA = w1.data?.[0]?.id;
+  const idB = w2.data?.[0]?.id;
+  check('ids das carteiras criadas', Boolean(idA && idB), { idA, idB });
+
+  const tr = await q('transfers', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ user_id: uid, from_wallet_id: idA, to_wallet_id: idB, amount: 30, date: new Date().toISOString().slice(0, 10), note: 'e2e' }),
+  }, at);
+  check('criar transferencia -> 201', Boolean(idA && idB) && tr.status === 201, tr.status);
+
+  const trBad = await q('transfers', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ user_id: uid, from_wallet_id: idA, to_wallet_id: idA, amount: 10 }),
+  }, at);
+  check('transferencia origem=destino -> erro de check', Boolean(idA) && trBad.status >= 400 && trBad.status !== 404, trBad.status);
+
+  const txW = await q('transactions', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ user_id: uid, id: 'tx-wallet-e2e', type: 'expense', amount: 10, category_id: 'outros', wallet_id: idA, date: new Date().toISOString().slice(0, 10), note: 'e2e wallet' }),
+  }, at);
+  check('transacao com wallet_id -> 201', Boolean(idA) && txW.status === 201, txW.status);
+  check('wallet_id persistido', Boolean(idA) && txW.data?.[0]?.wallet_id === idA, txW.data?.[0]?.wallet_id);
+
+  const delTx = await q('transactions?id=eq.tx-wallet-e2e', { method: 'DELETE' }, at);
+  check('limpeza transacao com carteira', delTx.status >= 200 && delTx.status < 300, delTx.status);
+  const delW = await q(`wallets?id=in.(${idA},${idB})`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=representation' },
+  }, at);
+  check('excluir carteiras -> cascade remove transferencias',
+    delW.status === 200 && Array.isArray(delW.data) && delW.data.length === 2, delW.data?.length);
+  const trLeft = await q(`transfers?user_id=eq.${uid}&select=id`, {}, at);
+  check('transferencias removidas no cascade',
+    trLeft.status === 200 && Array.isArray(trLeft.data) && trLeft.data.length === 0, trLeft.data);
 
   const t1 = 'cofre_sk_' + randomBytes(24).toString('hex');
   const ins1 = await q('integration_tokens', {
@@ -134,6 +184,9 @@ const sha256hex = (s) => createHash('sha256').update(s).digest('hex');
   const bList = await q('integration_tokens?select=id', {}, sess2.access_token);
   check('usuario B: sem tokens (RLS)',
     bList.status === 200 && Array.isArray(bList.data) && bList.data.length === 0, bList.data);
+  const bWallets = await q('wallets?select=id', {}, sess2.access_token);
+  check('usuario B: sem carteiras (RLS)',
+    bWallets.status === 200 && Array.isArray(bWallets.data) && bWallets.data.length === 0, bWallets.data);
 
   console.log(`\n${pass} pass, ${fail} fail`);
   process.exit(fail ? 1 : 0);

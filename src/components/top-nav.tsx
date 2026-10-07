@@ -14,6 +14,7 @@ import {
   Settings,
   Sun,
   Wallet,
+  WalletCards,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -35,6 +36,7 @@ import { initials } from '@/lib/auth'
 const navItems = [
   { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
   { to: '/transacoes', label: 'Transações', icon: Receipt, end: false },
+  { to: '/carteiras', label: 'Carteiras', icon: WalletCards, end: false },
   { to: '/orcamentos', label: 'Orçamentos', icon: Wallet, end: false },
   { to: '/relatorios', label: 'Relatórios', icon: PieChart, end: false },
   { to: '/configuracoes', label: 'Configurações', icon: Settings, end: false },

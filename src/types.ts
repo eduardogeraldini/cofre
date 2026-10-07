@@ -7,11 +7,28 @@ export interface Category {
   icon: string
 }
 
+export interface Wallet {
+  id: string
+  name: string
+  color: string
+  initialBalance: number
+}
+
+export interface Transfer {
+  id: string
+  fromWalletId: string
+  toWalletId: string
+  amount: number
+  date: string
+  note: string
+}
+
 export interface Transaction {
   id: string
   type: TxType
   amount: number
   categoryId: string
+  walletId?: string | null
   date: string
   note: string
 }
@@ -24,6 +41,8 @@ export interface Settings {
 export interface AppState {
   version: number
   categories: Category[]
+  wallets: Wallet[]
+  transfers: Transfer[]
   transactions: Transaction[]
   budgets: Record<string, number>
   settings: Settings

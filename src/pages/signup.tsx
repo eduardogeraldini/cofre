@@ -137,7 +137,7 @@ export function SignupPage() {
         </Button>
 
         <p className="text-xs text-muted-foreground">
-          Conta e dados ficam salvos no seu Supabase — acessíveis de qualquer dispositivo.
+          Conta e dados ficam salvos online — acessíveis de qualquer dispositivo.
         </p>
       </form>
     </AuthShell>

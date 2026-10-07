@@ -10,6 +10,7 @@ import { ReportsPage } from '@/pages/reports'
 import { SettingsPage } from '@/pages/settings'
 import { SignupPage } from '@/pages/signup'
 import { TransactionsPage } from '@/pages/transactions'
+import { WalletsPage } from '@/pages/wallets'
 import { BudgetProvider } from '@/store/budget-store'
 import { AuthProvider, useAuth } from '@/store/auth-store'
 
@@ -67,6 +68,7 @@ function App() {
                   <Route element={<AppLayout />}>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/transacoes" element={<TransactionsPage />} />
+                    <Route path="/carteiras" element={<WalletsPage />} />
                     <Route path="/orcamentos" element={<BudgetsPage />} />
                     <Route path="/relatorios" element={<ReportsPage />} />
                     <Route path="/configuracoes" element={<SettingsPage />} />

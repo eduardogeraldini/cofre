@@ -12,6 +12,7 @@ import {
   Settings,
   Sun,
   Wallet,
+  WalletCards,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import {
@@ -40,6 +41,7 @@ const CommandContext = createContext<CommandContextValue | null>(null)
 const navItems = [
   { to: '/', label: 'Painel', icon: LayoutDashboard },
   { to: '/transacoes', label: 'Transações', icon: Receipt },
+  { to: '/carteiras', label: 'Carteiras', icon: WalletCards },
   { to: '/orcamentos', label: 'Orçamentos', icon: Wallet },
   { to: '/relatorios', label: 'Relatórios', icon: PieChart },
   { to: '/configuracoes', label: 'Configurações', icon: Settings },

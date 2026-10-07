@@ -265,7 +265,7 @@ export function SettingsPage() {
             />
             <Separator />
             <p className="text-xs text-muted-foreground">
-              Os dados ficam salvos na sua conta no Supabase e sincronizam entre dispositivos.
+              Os dados ficam salvos na sua conta e sincronizam entre dispositivos.
             </p>
           </CardContent>
         </Card>
@@ -493,14 +493,15 @@ interface IntegrationToken {
 }
 
 function integrationHint(error: { code?: string | null; message: string }): string {
+  console.error('Integração:', error)
   if (
     error.code === '42P01' ||
     error.code === 'PGRST205' ||
     /integration_tokens|schema cache/i.test(error.message)
   ) {
-    return 'Rode supabase/integration.sql no SQL Editor do Supabase e tente novamente.'
+    return 'Serviço indisponível no momento. Tente novamente mais tarde.'
   }
-  return error.message
+  return 'Não foi possível concluir a operação. Tente novamente.'
 }
 
 function formatTokenDate(iso: string): string {

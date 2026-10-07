@@ -35,6 +35,7 @@ const schema = z
     type: z.enum(['income', 'expense']),
     amount: z.string().min(1, 'Informe o valor'),
     categoryId: z.string().min(1, 'Selecione uma categoria'),
+    walletId: z.string(),
     date: z.string().min(1, 'Selecione a data'),
     note: z.string().max(80, 'Máximo de 80 caracteres'),
   })
@@ -69,6 +70,8 @@ export function TransactionFormDialog({
     [state.categories],
   )
 
+  const walletOptions = useMemo(() => state.wallets, [state.wallets])
+
   const {
     control,
     handleSubmit,
@@ -81,6 +84,7 @@ export function TransactionFormDialog({
       type: 'expense',
       amount: '',
       categoryId: categories[0]?.id ?? '',
+      walletId: transaction?.walletId ?? walletOptions[0]?.id ?? '',
       date: toISODate(new Date()),
       note: '',
     },
@@ -100,6 +104,7 @@ export function TransactionFormDialog({
             type: transaction.type,
             amount: toAmountInput(transaction.amount),
             categoryId: transaction.categoryId,
+            walletId: transaction.walletId ?? '',
             date: transaction.date,
             note: transaction.note,
           }
@@ -107,11 +112,12 @@ export function TransactionFormDialog({
             type: 'expense',
             amount: '',
             categoryId: categories[0]?.id ?? '',
+            walletId: walletOptions[0]?.id ?? '',
             date: toISODate(new Date()),
             note: '',
           },
     )
-  }, [open, transaction, reset, categories])
+  }, [open, transaction, reset, categories, walletOptions])
 
   const onSubmit = (values: FormValues) => {
     const payload: Transaction = {
@@ -119,6 +125,7 @@ export function TransactionFormDialog({
       type: values.type,
       amount: Math.round(parseAmount(values.amount) * 100) / 100,
       categoryId: values.categoryId,
+      walletId: values.walletId || null,
       date: values.date,
       note: values.note.trim(),
     }
@@ -239,6 +246,32 @@ export function TransactionFormDialog({
             {errors.categoryId ? (
               <p className="text-xs text-destructive">{errors.categoryId.message}</p>
             ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Carteira</Label>
+            <Controller
+              control={control}
+              name="walletId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || 'none'}
+                  onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}
+                >
+                  <SelectTrigger className="w-full" aria-label="Carteira">
+                    <SelectValue placeholder="Carteira" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem carteira</SelectItem>
+                    {walletOptions.map((wallet) => (
+                      <SelectItem key={wallet.id} value={wallet.id}>
+                        {wallet.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
           <div className="flex flex-col gap-2">

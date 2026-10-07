@@ -15,7 +15,7 @@ const compact = new Intl.NumberFormat('pt-BR', {
 })
 
 export function formatCurrency(value: number, hideValue = false): string {
-  if (hideValue && value !== 0) return 'R$ ••••'
+  if (hideValue) return 'R$ ••••'
   return currency.format(value)
 }
 

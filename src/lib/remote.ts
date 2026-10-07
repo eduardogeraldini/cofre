@@ -1,4 +1,4 @@
-import type { AppState, Category, Settings, Transaction, TxType } from '@/types'
+import type { AppState, Category, Settings, Transaction, Transfer, TxType, Wallet } from '@/types'
 import { supabase } from '@/lib/supabase'
 
 interface CategoryRow {
@@ -8,11 +8,28 @@ interface CategoryRow {
   icon: string
 }
 
+interface WalletRow {
+  id: string
+  name: string
+  color: string
+  initial_balance: number | string
+}
+
+interface TransferRow {
+  id: string
+  from_wallet_id: string
+  to_wallet_id: string
+  amount: number | string
+  date: string
+  note: string | null
+}
+
 interface TransactionRow {
   id: string
   type: TxType
   amount: number | string
   category_id: string
+  wallet_id: string | null
   date: string
   note: string | null
 }
@@ -35,12 +52,28 @@ function fromCategoryRow(row: CategoryRow): Category {
   return { id: row.id, name: row.name, type: row.type, icon: row.icon }
 }
 
+function fromWalletRow(row: WalletRow): Wallet {
+  return { id: row.id, name: row.name, color: row.color, initialBalance: Number(row.initial_balance) }
+}
+
+function fromTransferRow(row: TransferRow): Transfer {
+  return {
+    id: row.id,
+    fromWalletId: row.from_wallet_id,
+    toWalletId: row.to_wallet_id,
+    amount: Number(row.amount),
+    date: row.date,
+    note: row.note ?? '',
+  }
+}
+
 function fromTransactionRow(row: TransactionRow): Transaction {
   return {
     id: row.id,
     type: row.type,
     amount: Number(row.amount),
     categoryId: row.category_id,
+    walletId: row.wallet_id,
     date: row.date,
     note: row.note ?? '',
   }
@@ -56,6 +89,28 @@ function toCategoryRow(userId: string, category: Category) {
   }
 }
 
+function toWalletRow(userId: string, wallet: Wallet) {
+  return {
+    user_id: userId,
+    id: wallet.id,
+    name: wallet.name,
+    color: wallet.color,
+    initial_balance: wallet.initialBalance,
+  }
+}
+
+function toTransferRow(userId: string, transfer: Transfer) {
+  return {
+    user_id: userId,
+    id: transfer.id,
+    from_wallet_id: transfer.fromWalletId,
+    to_wallet_id: transfer.toWalletId,
+    amount: transfer.amount,
+    date: transfer.date,
+    note: transfer.note,
+  }
+}
+
 function toTransactionRow(userId: string, tx: Transaction) {
   return {
     user_id: userId,
@@ -63,6 +118,7 @@ function toTransactionRow(userId: string, tx: Transaction) {
     type: tx.type,
     amount: tx.amount,
     category_id: tx.categoryId,
+    wallet_id: tx.walletId ?? null,
     date: tx.date,
     note: tx.note,
   }
@@ -84,33 +140,50 @@ function toSettingsRow(userId: string, settings: Settings) {
 export async function loadRemoteState(userId: string): Promise<AppState | null> {
   const db = supabase()
 
-  const [categories, transactions, budgets, settings] = await Promise.all([
+  const [categories, wallets, transfers, transactions, budgets, settings] = await Promise.all([
     db.from('categories').select('id, name, type, icon').eq('user_id', userId),
+    db.from('wallets').select('id, name, color, initial_balance').eq('user_id', userId),
+    db
+      .from('transfers')
+      .select('id, from_wallet_id, to_wallet_id, amount, date, note')
+      .eq('user_id', userId),
     db
       .from('transactions')
-      .select('id, type, amount, category_id, date, note')
+      .select('id, type, amount, category_id, wallet_id, date, note')
       .eq('user_id', userId),
     db.from('budgets').select('category_id, amount').eq('user_id', userId),
     db.from('settings').select('privacy_mode, compact_values').eq('user_id', userId).maybeSingle(),
   ])
 
   must(categories, 'Falha ao carregar categorias')
+  must(wallets, 'Falha ao carregar carteiras')
+  must(transfers, 'Falha ao carregar transferências')
   must(transactions, 'Falha ao carregar transações')
   must(budgets, 'Falha ao carregar orçamentos')
   must(settings, 'Falha ao carregar configurações')
 
   const categoryRows = (categories.data ?? []) as CategoryRow[]
+  const walletRows = (wallets.data ?? []) as WalletRow[]
+  const transferRows = (transfers.data ?? []) as TransferRow[]
   const transactionRows = (transactions.data ?? []) as TransactionRow[]
   const budgetRows = (budgets.data ?? []) as BudgetRow[]
   const settingsRow = settings.data as SettingsRow | null
 
-  if (categoryRows.length === 0 && transactionRows.length === 0 && budgetRows.length === 0) {
+  if (
+    categoryRows.length === 0 &&
+    walletRows.length === 0 &&
+    transferRows.length === 0 &&
+    transactionRows.length === 0 &&
+    budgetRows.length === 0
+  ) {
     return null
   }
 
   return {
     version: 1,
     categories: categoryRows.map(fromCategoryRow),
+    wallets: walletRows.map(fromWalletRow),
+    transfers: transferRows.map(fromTransferRow),
     transactions: transactionRows.map(fromTransactionRow),
     budgets: Object.fromEntries(
       budgetRows.map((row) => [row.category_id, Number(row.amount)]),
@@ -124,6 +197,15 @@ export async function loadRemoteState(userId: string): Promise<AppState | null> 
 
 async function insertAll(userId: string, state: AppState): Promise<void> {
   const db = supabase()
+
+  if (state.wallets.length > 0) {
+    const { error } = await db
+      .from('wallets')
+      .upsert(state.wallets.map((wallet) => toWalletRow(userId, wallet)), {
+        onConflict: 'id',
+      })
+    must({ error }, 'Falha ao salvar carteiras')
+  }
 
   if (state.categories.length > 0) {
     const { error } = await db
@@ -141,6 +223,15 @@ async function insertAll(userId: string, state: AppState): Promise<void> {
         onConflict: 'user_id,id',
       })
     must({ error }, 'Falha ao salvar transações')
+  }
+
+  if (state.transfers.length > 0) {
+    const { error } = await db
+      .from('transfers')
+      .upsert(state.transfers.map((transfer) => toTransferRow(userId, transfer)), {
+        onConflict: 'id',
+      })
+    must({ error }, 'Falha ao salvar transferências')
   }
 
   const budgetEntries = Object.entries(state.budgets)
@@ -192,6 +283,22 @@ export async function syncDiff(
     (category) => !nextCategories.has(category.id),
   )
 
+  const prevWallets = new Map(prev.wallets.map((wallet) => [wallet.id, wallet]))
+  const nextWallets = new Map(next.wallets.map((wallet) => [wallet.id, wallet]))
+
+  const walletsUpsert = next.wallets.filter(
+    (wallet) => JSON.stringify(prevWallets.get(wallet.id)) !== JSON.stringify(wallet),
+  )
+  const walletsRemoved = prev.wallets.filter((wallet) => !nextWallets.has(wallet.id))
+
+  const prevTransfers = new Map(prev.transfers.map((transfer) => [transfer.id, transfer]))
+  const nextTransfers = new Map(next.transfers.map((transfer) => [transfer.id, transfer]))
+
+  const transfersUpsert = next.transfers.filter(
+    (transfer) => JSON.stringify(prevTransfers.get(transfer.id)) !== JSON.stringify(transfer),
+  )
+  const transfersRemoved = prev.transfers.filter((transfer) => !nextTransfers.has(transfer.id))
+
   const prevTx = new Map(prev.transactions.map((tx) => [tx.id, tx]))
   const nextTx = new Map(next.transactions.map((tx) => [tx.id, tx]))
   const transactionsUpsert = next.transactions.filter(
@@ -214,6 +321,15 @@ export async function syncDiff(
 
   const settingsChanged = JSON.stringify(prev.settings) !== JSON.stringify(next.settings)
 
+  if (walletsUpsert.length > 0) {
+    const { error } = await db
+      .from('wallets')
+      .upsert(walletsUpsert.map((wallet) => toWalletRow(userId, wallet)), {
+        onConflict: 'id',
+      })
+    must({ error }, 'Falha ao salvar carteiras')
+  }
+
   if (categoriesUpsert.length > 0) {
     const { error } = await db
       .from('categories')
@@ -230,6 +346,15 @@ export async function syncDiff(
         onConflict: 'user_id,id',
       })
     must({ error }, 'Falha ao salvar transações')
+  }
+
+  if (transfersUpsert.length > 0) {
+    const { error } = await db
+      .from('transfers')
+      .upsert(transfersUpsert.map((transfer) => toTransferRow(userId, transfer)), {
+        onConflict: 'id',
+      })
+    must({ error }, 'Falha ao salvar transferências')
   }
 
   if (budgetsUpsert.length > 0) {
@@ -276,5 +401,23 @@ export async function syncDiff(
       .eq('user_id', userId)
       .in('id', categoriesRemoved.map((category) => category.id))
     must({ error }, 'Falha ao remover categorias')
+  }
+
+  if (transfersRemoved.length > 0) {
+    const { error } = await db
+      .from('transfers')
+      .delete()
+      .eq('user_id', userId)
+      .in('id', transfersRemoved.map((transfer) => transfer.id))
+    must({ error }, 'Falha ao remover transferências')
+  }
+
+  if (walletsRemoved.length > 0) {
+    const { error } = await db
+      .from('wallets')
+      .delete()
+      .eq('user_id', userId)
+      .in('id', walletsRemoved.map((wallet) => wallet.id))
+    must({ error }, 'Falha ao remover carteiras')
   }
 }
