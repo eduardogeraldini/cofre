@@ -187,6 +187,7 @@ export function TransactionsPage() {
             <span className="size-9 shrink-0" />
             <span className="flex-1 text-overline">Descrição</span>
             <span className="w-28 text-overline">Categoria</span>
+            <span className="w-28 text-overline">Carteira</span>
             <span className="w-28 text-right text-overline">Valor</span>
             <span className="w-8" />
           </div>

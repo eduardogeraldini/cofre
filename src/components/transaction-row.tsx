@@ -21,6 +21,7 @@ import {
 import { CategoryIcon } from '@/components/category-icon'
 import { Money } from '@/components/money'
 import { relativeDay } from '@/lib/format'
+import { walletDotClass } from '@/lib/wallet-colors'
 import { useBudget } from '@/store/budget-store'
 import type { Transaction } from '@/types'
 
@@ -33,6 +34,7 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
   const { state, dispatch } = useBudget()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const category = state.categories.find((item) => item.id === transaction.categoryId)
+  const wallet = state.wallets.find((item) => item.id === transaction.walletId)
   const isIncome = transaction.type === 'income'
 
   const remove = () => {
@@ -58,6 +60,19 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
 
       <span className="hidden w-28 shrink-0 truncate text-xs text-muted-foreground md:block">
         {category?.name ?? '—'}
+      </span>
+
+      <span className="hidden w-28 shrink-0 items-center gap-1.5 text-xs text-muted-foreground md:flex">
+        {wallet ? (
+          <>
+            <span
+              className={`size-2.5 shrink-0 rounded-full ${walletDotClass(wallet.color)}`}
+            />
+            <span className="truncate">{wallet.name}</span>
+          </>
+        ) : (
+          '—'
+        )}
       </span>
 
       <Money
