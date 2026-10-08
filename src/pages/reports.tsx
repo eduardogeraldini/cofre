@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ArrowDownRight, ArrowUpRight, PieChart, TrendingUp, Wallet } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -15,6 +16,7 @@ import { CashFlowChart } from '@/components/charts/cash-flow-chart'
 import { EmptyState } from '@/components/empty-state'
 import { Money } from '@/components/money'
 import { PageHeader } from '@/components/page-header'
+import { SegmentedControl } from '@/components/segmented-control'
 import { StatCard } from '@/components/stat-card'
 import { TransactionRow } from '@/components/transaction-row'
 import { WalletExpenses } from '@/components/wallet-expenses'
@@ -29,13 +31,28 @@ import {
   transactionsInMonth,
 } from '@/lib/selectors'
 import { useBudget } from '@/store/budget-store'
+import type { TxType } from '@/types'
 
 const MONTH_COUNT = 12
+const CURRENT_MONTH = monthKeyOf(new Date())
 
 export function ReportsPage() {
   const { state } = useBudget()
+  const [params, setParams] = useSearchParams()
   const months = useMemo(() => lastMonthKeys(MONTH_COUNT).reverse(), [])
-  const [month, setMonth] = useState(() => monthKeyOf(new Date()))
+  const [kind, setKind] = useState<TxType>('expense')
+
+  const monthParam = params.get('mes')
+  const month =
+    monthParam && /^\d{4}-\d{2}$/.test(monthParam) && months.includes(monthParam)
+      ? monthParam
+      : CURRENT_MONTH
+
+  const changeMonth = (key: string) => {
+    const next = new URLSearchParams(params)
+    next.set('mes', key)
+    setParams(next)
+  }
 
   const txs = transactionsInMonth(state.transactions, month)
   const income = sumByType(txs, 'income')
@@ -47,8 +64,8 @@ export function ReportsPage() {
   const series = useMemo(() => monthSeries(state, 6), [state])
   const balance = useMemo(() => balanceSeries(state, MONTH_COUNT), [state])
 
-  const entries = useMemo(() => {
-    const breakdown = expenseBreakdown(state.transactions, month, state.categories)
+  const entries = (() => {
+    const breakdown = expenseBreakdown(state.transactions, month, state.categories, kind)
     const visible = breakdown.slice(0, 6)
     const rest = breakdown.slice(6)
     const list: DonutEntry[] = visible.map((item) => ({
@@ -59,14 +76,14 @@ export function ReportsPage() {
     if (rest.length > 0) {
       list.push({
         id: 'others',
-        name: 'Outras categorias',
+        name: kind === 'expense' ? 'Outras categorias' : 'Outras receitas',
         value: rest.reduce((total, item) => total + item.value, 0),
       })
     }
     return list
-  }, [state, month])
+  })()
 
-  const totalExpenses = entries.reduce((total, entry) => total + entry.value, 0)
+  const breakdownTotal = entries.reduce((total, entry) => total + entry.value, 0)
 
   const topExpenses = useMemo(
     () =>
@@ -84,7 +101,7 @@ export function ReportsPage() {
         title="Relatórios"
         description="Acompanhe a evolução do saldo e para onde o dinheiro vai a cada mês."
         actions={
-          <Select value={month} onValueChange={setMonth}>
+          <Select value={month} onValueChange={changeMonth}>
             <SelectTrigger className="w-full sm:w-52" aria-label="Selecionar mês">
               <SelectValue placeholder="Mês de referência" />
             </SelectTrigger>
@@ -138,8 +155,8 @@ export function ReportsPage() {
         />
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-5">
-        <Card className="gap-0 lg:col-span-3">
+      <section>
+        <Card className="gap-0">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
               Evolução do saldo
@@ -150,21 +167,38 @@ export function ReportsPage() {
             <BalanceChart data={balance} />
           </CardContent>
         </Card>
+      </section>
 
-        <Card className="gap-0 lg:col-span-2">
+      <section className="grid gap-5 lg:grid-cols-2">
+        <Card className="gap-0">
           <CardHeader className="border-b border-border pb-4">
-            <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-              Despesas por categoria
-            </CardTitle>
-            <CardDescription>{monthLabelLong(month)}</CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+                  {kind === 'expense' ? 'Despesas' : 'Receitas'} por categoria
+                </CardTitle>
+                <CardDescription>{monthLabelLong(month)}</CardDescription>
+              </div>
+              <div className="w-56 shrink-0">
+                <SegmentedControl<TxType>
+                  label="Mostrar despesas ou receitas"
+                  value={kind}
+                  onChange={setKind}
+                  options={[
+                    { value: 'expense', label: 'Despesas', icon: ArrowDownRight },
+                    { value: 'income', label: 'Receitas', icon: ArrowUpRight },
+                  ]}
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="pt-5">
             {entries.length > 0 ? (
               <>
                 <CategoryDonut
                   entries={entries}
-                  centerLabel="Total gasto"
-                  centerValue={<Money value={totalExpenses} />}
+                  centerLabel={kind === 'expense' ? 'Total gasto' : 'Total recebido'}
+                  centerValue={<Money value={breakdownTotal} />}
                 />
                 <ul className="mt-4 flex flex-col gap-2.5">
                   {entries.map((entry, index) => (
@@ -180,7 +214,7 @@ export function ReportsPage() {
                         <Money value={entry.value} />
                       </span>
                       <span className="w-10 shrink-0 text-right text-xs text-neutral tabular-nums">
-                        {((entry.value / totalExpenses) * 100).toFixed(0)}%
+                        {((entry.value / breakdownTotal) * 100).toFixed(0)}%
                       </span>
                     </li>
                   ))}
@@ -189,15 +223,13 @@ export function ReportsPage() {
             ) : (
               <EmptyState
                 icon={<PieChart className="size-6" />}
-                title="Sem despesas no mês"
-                description="Nenhuma saída registrada neste período."
+                title={kind === 'expense' ? 'Sem despesas no mês' : 'Sem receitas no mês'}
+                description="Nenhuma movimentação registrada neste período."
               />
             )}
           </CardContent>
         </Card>
-      </section>
 
-      <section>
         <Card className="gap-0">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
@@ -245,12 +277,17 @@ export function ReportsPage() {
             {topExpenses.length > 0 ? (
               <ul className="divide-y divide-border">
                 {topExpenses.map((transaction) => (
-                  <TransactionRow key={transaction.id} transaction={transaction} />
+                  <TransactionRow
+                    key={transaction.id}
+                    transaction={transaction}
+                    percent={expense > 0 ? (transaction.amount / expense) * 100 : 0}
+                  />
                 ))}
               </ul>
             ) : (
               <div className="px-4 pt-5">
                 <EmptyState
+                  icon={<ArrowDownRight className="size-6" />}
                   title="Nada por aqui"
                   description="Ainda não há despesas registradas neste mês."
                 />

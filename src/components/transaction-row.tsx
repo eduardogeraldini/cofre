@@ -28,9 +28,10 @@ import type { Transaction } from '@/types'
 interface TransactionRowProps {
   transaction: Transaction
   onEdit?: (transaction: Transaction) => void
+  percent?: number
 }
 
-export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
+export function TransactionRow({ transaction, onEdit, percent }: TransactionRowProps) {
   const { state, dispatch } = useBudget()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const category = state.categories.find((item) => item.id === transaction.categoryId)
@@ -78,14 +79,21 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
         )}
       </span>
 
-      <Money
-        value={transaction.amount}
-        className={
-          isIncome
-            ? 'w-28 shrink-0 text-right text-sm font-medium text-success'
-            : 'w-28 shrink-0 text-right text-sm font-medium text-foreground'
-        }
-      />
+      <div className="flex shrink-0 flex-col items-end gap-0.5">
+        <Money
+          value={transaction.amount}
+          className={
+            isIncome
+              ? 'w-28 text-right text-sm font-medium text-success'
+              : 'w-28 text-right text-sm font-medium text-foreground'
+          }
+        />
+        {percent !== undefined ? (
+          <span className="w-28 text-right text-xs text-neutral tabular-nums">
+            {percent.toFixed(0)}%
+          </span>
+        ) : null}
+      </div>
 
       <div className="flex w-8 shrink-0 justify-end">
         {onEdit ? (

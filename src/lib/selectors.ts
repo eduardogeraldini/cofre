@@ -1,4 +1,4 @@
-import type { AppState, CategorySummary, MonthPoint, Transaction, Wallet } from '@/types'
+import type { AppState, CategorySummary, MonthPoint, Transaction, TxType, Wallet } from '@/types'
 import { lastMonthKeys, monthKey, monthLabel, previousMonthKey } from '@/lib/format'
 
 export function transactionsInMonth(transactions: Transaction[], key: string): Transaction[] {
@@ -113,12 +113,17 @@ export function categorySummaries(state: AppState, key: string): CategorySummary
     .sort((a, b) => b.spent - a.spent)
 }
 
-export function expenseBreakdown(transactions: Transaction[], key: string, categories: AppState['categories']) {
+export function expenseBreakdown(
+  transactions: Transaction[],
+  key: string,
+  categories: AppState['categories'],
+  type: TxType = 'expense',
+) {
   const txs = transactionsInMonth(transactions, key)
   const totals = new Map<string, number>()
 
   for (const tx of txs) {
-    if (tx.type !== 'expense') continue
+    if (tx.type !== type) continue
     totals.set(tx.categoryId, (totals.get(tx.categoryId) ?? 0) + tx.amount)
   }
 

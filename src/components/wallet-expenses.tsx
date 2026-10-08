@@ -1,9 +1,9 @@
 import { WalletCards } from 'lucide-react'
+import { CategoryDonut, type DonutEntry } from '@/components/charts/category-donut'
+import { rampColor } from '@/components/charts/chart-primitives'
 import { EmptyState } from '@/components/empty-state'
 import { Money } from '@/components/money'
-import { Progress } from '@/components/ui/progress'
 import { expensesByWallet } from '@/lib/selectors'
-import { walletDotClass } from '@/lib/wallet-colors'
 import { useBudget } from '@/store/budget-store'
 
 export function WalletExpenses({ month }: { month: string }) {
@@ -21,33 +21,36 @@ export function WalletExpenses({ month }: { month: string }) {
     )
   }
 
+  const entries: DonutEntry[] = rows.map((row) => ({
+    id: row.wallet?.id ?? 'sem-carteira',
+    name: row.wallet?.name ?? 'Sem carteira',
+    value: row.total,
+  }))
+
   return (
-    <div className="flex flex-col gap-4">
-      {rows.map((row) => (
-        <div key={row.wallet?.id ?? 'sem-carteira'} className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex min-w-0 items-center gap-2 text-sm">
-              {row.wallet ? (
-                <span
-                  className={`size-2.5 shrink-0 rounded-full ${walletDotClass(row.wallet.color)}`}
-                />
-              ) : (
-                <WalletCards className="size-3.5 shrink-0 text-muted-foreground" />
-              )}
-              <span className="truncate">{row.wallet?.name ?? 'Sem carteira'}</span>
+    <>
+      <CategoryDonut
+        entries={entries}
+        centerLabel="Total gasto"
+        centerValue={<Money value={total} />}
+      />
+      <ul className="mt-4 flex flex-col gap-2.5">
+        {entries.map((entry, index) => (
+          <li key={entry.id} className="flex items-center gap-2.5 text-sm">
+            <span
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: rampColor(index, entries.length) }}
+            />
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">{entry.name}</span>
+            <span className="shrink-0 font-medium tabular-nums">
+              <Money value={entry.value} />
             </span>
-            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-              <Money value={row.total} />
-              {total > 0 ? ` · ${((row.total / total) * 100).toFixed(0)}%` : ''}
+            <span className="w-10 shrink-0 text-right text-xs text-neutral tabular-nums">
+              {((entry.value / total) * 100).toFixed(0)}%
             </span>
-          </div>
-          <Progress
-            value={total > 0 ? (row.total / total) * 100 : 0}
-            className="h-1.5"
-            indicatorClassName={row.wallet ? walletDotClass(row.wallet.color) : 'bg-muted-foreground'}
-          />
-        </div>
-      ))}
-    </div>
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }
