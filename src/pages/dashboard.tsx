@@ -12,20 +12,16 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { CashFlowChart } from '@/components/charts/cash-flow-chart'
-import { ChartLegend } from '@/components/charts/chart-primitives'
 import { CategoryIcon } from '@/components/category-icon'
 import { EmptyState } from '@/components/empty-state'
 import { Money } from '@/components/money'
 import { StatCard } from '@/components/stat-card'
 import { TransactionRow } from '@/components/transaction-row'
 import { TransactionFormDialog } from '@/components/transaction-form-dialog'
-import { WalletExpenses } from '@/components/wallet-expenses'
 import {
   categorySummaries,
   budgetUsage,
   changeAgainstPrevious,
-  monthSeries,
   savingsRate,
   sumByType,
   totalBalance,
@@ -55,7 +51,6 @@ export function DashboardPage() {
   const rate = savingsRate(income, expense)
   const delta = changeAgainstPrevious(state, current)
   const usage = budgetUsage(state, current)
-  const series = monthSeries(state, 6)
   const summaries = categorySummaries(state, current)
     .filter((summary) => summary.limit > 0)
     .slice(0, 5)
@@ -170,27 +165,8 @@ export function DashboardPage() {
         />
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-5">
-        <Card className="gap-0 lg:col-span-3">
-          <CardHeader className="border-b border-border pb-4">
-            <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-              Fluxo de caixa
-            </CardTitle>
-            <CardDescription>Entradas e saídas dos últimos 6 meses</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-5">
-            <CashFlowChart data={series} />
-            <ChartLegend
-              className="mt-4"
-              items={[
-                { label: 'Receitas', color: 'var(--chart-1)' },
-                { label: 'Despesas', color: 'var(--chart-2)' },
-              ]}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="gap-0 lg:col-span-2">
+      <section>
+        <Card className="gap-0">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
               Orçamentos do mês
@@ -249,20 +225,6 @@ export function DashboardPage() {
               Gerenciar orçamentos
               <ArrowUpRight className="size-4" />
             </Link>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section>
-        <Card className="gap-0">
-          <CardHeader className="border-b border-border pb-4">
-            <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-              Gastos por carteira
-            </CardTitle>
-            <CardDescription>Para onde o dinheiro saiu em {monthLabelLong(current)}</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-5">
-            <WalletExpenses month={current} />
           </CardContent>
         </Card>
       </section>
