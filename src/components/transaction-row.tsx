@@ -29,9 +29,15 @@ interface TransactionRowProps {
   transaction: Transaction
   onEdit?: (transaction: Transaction) => void
   percent?: number
+  hideCategory?: boolean
 }
 
-export function TransactionRow({ transaction, onEdit, percent }: TransactionRowProps) {
+export function TransactionRow({
+  transaction,
+  onEdit,
+  percent,
+  hideCategory,
+}: TransactionRowProps) {
   const { state, dispatch } = useBudget()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const category = state.categories.find((item) => item.id === transaction.categoryId)
@@ -62,9 +68,11 @@ export function TransactionRow({ transaction, onEdit, percent }: TransactionRowP
         </p>
       </div>
 
-      <span className="hidden w-28 shrink-0 truncate text-xs text-muted-foreground md:block">
-        {category?.name ?? '—'}
-      </span>
+      {!hideCategory ? (
+        <span className="hidden w-28 shrink-0 truncate text-xs text-muted-foreground md:block">
+          {category?.name ?? '—'}
+        </span>
+      ) : null}
 
       <span className="hidden w-28 shrink-0 items-center gap-1.5 text-xs text-muted-foreground md:flex">
         {wallet ? (

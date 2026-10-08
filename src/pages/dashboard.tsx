@@ -6,6 +6,7 @@ import {
   PieChart,
   Plus,
   Receipt,
+  Shapes,
   TrendingUp,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -208,6 +209,7 @@ export function DashboardPage() {
               </div>
             ) : (
               <EmptyState
+                icon={<Shapes className="size-6" />}
                 title="Nenhum limite definido"
                 description="Crie limites mensais por categoria para ver o progresso aqui."
                 action={
@@ -263,6 +265,7 @@ export function DashboardPage() {
             ) : (
               <div className="px-4 pt-5">
                 <EmptyState
+                  icon={<Receipt className="size-6" />}
                   title="Ainda não há transações"
                   description="Registre a primeira entrada ou saída para começar a acompanhar o orçamento."
                   action={

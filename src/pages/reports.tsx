@@ -281,6 +281,7 @@ export function ReportsPage() {
                     key={transaction.id}
                     transaction={transaction}
                     percent={expense > 0 ? (transaction.amount / expense) * 100 : 0}
+                    hideCategory
                   />
                 ))}
               </ul>

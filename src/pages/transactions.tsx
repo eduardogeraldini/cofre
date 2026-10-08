@@ -294,6 +294,7 @@ export function TransactionsPage() {
           ) : (
             <div className="p-5">
               <EmptyState
+                icon={<Search className="size-6" />}
                 title="Nenhum resultado"
                 description="Nenhuma transação corresponde aos filtros aplicados."
                 action={

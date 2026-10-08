@@ -6,6 +6,7 @@ export interface DonutEntry {
   id: string
   name: string
   value: number
+  color?: string
 }
 
 interface CategoryDonutProps {
@@ -63,7 +64,11 @@ export function CategoryDonut({
             {entries.map((entry, index) => (
               <Cell
                 key={entry.id}
-                fill={activeIndex === index ? 'var(--primary)' : rampColor(index, entries.length)}
+                fill={
+                  activeIndex === index
+                    ? 'var(--primary)'
+                    : (entry.color ?? rampColor(index, entries.length))
+                }
                 className="cursor-pointer transition-colors"
               />
             ))}

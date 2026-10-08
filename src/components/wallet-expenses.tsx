@@ -4,6 +4,7 @@ import { rampColor } from '@/components/charts/chart-primitives'
 import { EmptyState } from '@/components/empty-state'
 import { Money } from '@/components/money'
 import { expensesByWallet } from '@/lib/selectors'
+import { walletHex } from '@/lib/wallet-colors'
 import { useBudget } from '@/store/budget-store'
 
 export function WalletExpenses({ month }: { month: string }) {
@@ -25,6 +26,7 @@ export function WalletExpenses({ month }: { month: string }) {
     id: row.wallet?.id ?? 'sem-carteira',
     name: row.wallet?.name ?? 'Sem carteira',
     value: row.total,
+    color: row.wallet ? walletHex(row.wallet.color) : undefined,
   }))
 
   return (
@@ -39,7 +41,7 @@ export function WalletExpenses({ month }: { month: string }) {
           <li key={entry.id} className="flex items-center gap-2.5 text-sm">
             <span
               className="size-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: rampColor(index, entries.length) }}
+              style={{ backgroundColor: entry.color ?? rampColor(index, entries.length) }}
             />
             <span className="min-w-0 flex-1 truncate text-muted-foreground">{entry.name}</span>
             <span className="shrink-0 font-medium tabular-nums">
