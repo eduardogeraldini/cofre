@@ -17,6 +17,7 @@ import { Money } from '@/components/money'
 import { PageHeader } from '@/components/page-header'
 import { StatCard } from '@/components/stat-card'
 import { TransactionRow } from '@/components/transaction-row'
+import { WalletExpenses } from '@/components/wallet-expenses'
 import { lastMonthKeys, monthKeyOf, monthLabel, monthLabelLong } from '@/lib/format'
 import {
   balanceSeries,
@@ -192,6 +193,20 @@ export function ReportsPage() {
                 description="Nenhuma saída registrada neste período."
               />
             )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section>
+        <Card className="gap-0">
+          <CardHeader className="border-b border-border pb-4">
+            <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+              Despesas por carteira
+            </CardTitle>
+            <CardDescription>{monthLabelLong(month)}</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <WalletExpenses month={month} />
           </CardContent>
         </Card>
       </section>

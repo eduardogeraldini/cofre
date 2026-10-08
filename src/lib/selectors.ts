@@ -1,4 +1,4 @@
-import type { AppState, CategorySummary, MonthPoint, Transaction } from '@/types'
+import type { AppState, CategorySummary, MonthPoint, Transaction, Wallet } from '@/types'
 import { lastMonthKeys, monthKey, monthLabel, previousMonthKey } from '@/lib/format'
 
 export function transactionsInMonth(transactions: Transaction[], key: string): Transaction[] {
@@ -43,6 +43,33 @@ export function walletMonthFlow(state: AppState, walletId: string, key: string) 
     (tx) => tx.walletId === walletId,
   )
   return { income: sumByType(txs, 'income'), expense: sumByType(txs, 'expense') }
+}
+
+export interface WalletExpense {
+  wallet: Wallet | null
+  total: number
+}
+
+export function expensesByWallet(state: AppState, key: string): WalletExpense[] {
+  const byId = new Map<string, number>()
+  let loose = 0
+  for (const tx of state.transactions) {
+    if (tx.type !== 'expense' || monthKey(tx.date) !== key) continue
+    if (tx.walletId) {
+      byId.set(tx.walletId, (byId.get(tx.walletId) ?? 0) + tx.amount)
+    } else {
+      loose += tx.amount
+    }
+  }
+  const rows: WalletExpense[] = []
+  for (const wallet of state.wallets) {
+    const total = byId.get(wallet.id) ?? 0
+    if (total > 0) rows.push({ wallet, total })
+    byId.delete(wallet.id)
+  }
+  for (const total of byId.values()) loose += total
+  if (loose > 0) rows.push({ wallet: null, total: loose })
+  return rows.sort((a, b) => b.total - a.total)
 }
 
 export function balanceBefore(transactions: Transaction[], key: string): number {

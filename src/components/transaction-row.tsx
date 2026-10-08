@@ -53,7 +53,10 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
           {transaction.note || category?.name || 'Sem descrição'}
         </p>
         <p className="truncate text-xs text-muted-foreground">
-          <span className="sm:hidden">{category?.name ?? '—'} · </span>
+          <span className="md:hidden">
+            {category?.name ?? '—'}
+            {wallet ? ` · ${wallet.name}` : ''} ·{' '}
+          </span>
           {relativeDay(transaction.date)}
         </p>
       </div>

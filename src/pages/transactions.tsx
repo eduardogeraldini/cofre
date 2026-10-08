@@ -33,6 +33,7 @@ export function TransactionsPage() {
   const [search, setSearch] = useState(() => params.get('q') ?? '')
   const [type, setType] = useState<TxFilter>('all')
   const [category, setCategory] = useState(ALL)
+  const [walletFilter, setWalletFilter] = useState(ALL)
   const [month, setMonth] = useState(ALL)
 
   useEffect(() => {
@@ -54,16 +55,26 @@ export function TransactionsPage() {
     return state.transactions.filter((tx) => {
       if (type !== 'all' && tx.type !== type) return false
       if (category !== ALL && tx.categoryId !== category) return false
+      if (walletFilter === 'none' && tx.walletId) return false
+      if (walletFilter !== ALL && walletFilter !== 'none' && tx.walletId !== walletFilter)
+        return false
       if (month !== ALL && monthKey(tx.date) !== month) return false
       if (query) {
         const note = tx.note.toLowerCase()
         const categoryName =
           state.categories.find((item) => item.id === tx.categoryId)?.name.toLowerCase() ?? ''
-        if (!note.includes(query) && !categoryName.includes(query)) return false
+        const walletName =
+          state.wallets.find((item) => item.id === tx.walletId)?.name.toLowerCase() ?? ''
+        if (
+          !note.includes(query) &&
+          !categoryName.includes(query) &&
+          !walletName.includes(query)
+        )
+          return false
       }
       return true
     })
-  }, [state.transactions, state.categories, search, type, category, month])
+  }, [state.transactions, state.categories, state.wallets, search, type, category, walletFilter, month])
 
   const totals = useMemo(
     () => ({
@@ -73,9 +84,14 @@ export function TransactionsPage() {
     [filtered],
   )
 
-  const hasFilters = search.trim() !== '' || type !== 'all' || category !== ALL || month !== ALL
+  const hasFilters =
+    search.trim() !== '' ||
+    type !== 'all' ||
+    category !== ALL ||
+    walletFilter !== ALL ||
+    month !== ALL
 
-  const filterKey = `${search.trim()}|${type}|${category}|${month}`
+  const filterKey = `${search.trim()}|${type}|${category}|${walletFilter}|${month}`
   const [page, setPage] = useState({ key: filterKey, count: PAGE_SIZE })
   const visible = page.key === filterKey ? page.count : PAGE_SIZE
 
@@ -97,6 +113,7 @@ export function TransactionsPage() {
     setSearch('')
     setType('all')
     setCategory(ALL)
+    setWalletFilter(ALL)
     setMonth(ALL)
   }
 
@@ -152,6 +169,21 @@ export function TransactionsPage() {
             <SelectContent>
               <SelectItem value={ALL}>Todas as categorias</SelectItem>
               {state.categories.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={walletFilter} onValueChange={setWalletFilter}>
+            <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar por carteira">
+              <SelectValue placeholder="Carteira" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Todas as carteiras</SelectItem>
+              <SelectItem value="none">Sem carteira</SelectItem>
+              {state.wallets.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
                   {item.name}
                 </SelectItem>
