@@ -18,6 +18,7 @@ import { useAuth } from '@/store/auth-store'
 
 type Action =
   | { type: 'transaction/add'; transaction: Transaction }
+  | { type: 'transaction/import'; transactions: Transaction[] }
   | { type: 'transaction/update'; transaction: Transaction }
   | { type: 'transaction/delete'; id: string }
   | { type: 'wallet/add'; wallet: Wallet }
@@ -39,6 +40,13 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         transactions: [action.transaction, ...state.transactions].sort((a, b) =>
+          a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
+        ),
+      }
+    case 'transaction/import':
+      return {
+        ...state,
+        transactions: [...action.transactions, ...state.transactions].sort((a, b) =>
           a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
         ),
       }

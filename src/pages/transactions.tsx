@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Receipt, Search } from 'lucide-react'
+import { FileUp, Plus, Receipt, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,7 @@ import { Money } from '@/components/money'
 import { PageHeader } from '@/components/page-header'
 import { TransactionRow } from '@/components/transaction-row'
 import { TransactionFormDialog } from '@/components/transaction-form-dialog'
+import { OfxImportDialog } from '@/components/ofx-import-dialog'
 import { monthKey, monthLabel } from '@/lib/format'
 import { sumByType } from '@/lib/selectors'
 import { useBudget } from '@/store/budget-store'
@@ -29,6 +30,7 @@ export function TransactionsPage() {
   const { state } = useBudget()
   const [params, setParams] = useSearchParams()
   const [formOpen, setFormOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [search, setSearch] = useState(() => params.get('q') ?? '')
   const [type, setType] = useState<TxFilter>('all')
@@ -124,10 +126,16 @@ export function TransactionsPage() {
         title="Transações"
         description="Todas as entradas e saídas do orçamento, com filtros por categoria e período."
         actions={
-          <Button onClick={openNew}>
-            <Plus />
-            Nova transação
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <FileUp />
+              Importar OFX
+            </Button>
+            <Button onClick={openNew}>
+              <Plus />
+              Nova transação
+            </Button>
+          </>
         }
       />
 
@@ -300,6 +308,7 @@ export function TransactionsPage() {
       </Card>
 
       <TransactionFormDialog open={formOpen} onOpenChange={setFormOpen} transaction={editing} />
+      <OfxImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   )
 }
