@@ -167,7 +167,7 @@ export function OfxImportDialog({ open, onOpenChange }: OfxImportDialogProps) {
         </DialogHeader>
 
         {step === 'file' ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <div
               className={`flex flex-col items-center gap-3 rounded-lg border border-dashed px-4 py-8 text-center transition-colors ${
                 dragging ? 'border-primary bg-primary/5' : 'border-border bg-muted/40'
@@ -211,7 +211,7 @@ export function OfxImportDialog({ open, onOpenChange }: OfxImportDialogProps) {
             {error ? <p className="text-xs text-destructive">{error}</p> : null}
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -243,21 +243,18 @@ export function OfxImportDialog({ open, onOpenChange }: OfxImportDialogProps) {
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(incomeTotal)} em entradas · {formatCurrency(expenseTotal)} em saídas
-            </p>
-
             <div className="max-h-[40vh] overflow-y-auto rounded-lg border border-border">
               <ul className="divide-y divide-border">
                 {rows.map((row, index) => (
                   <li
                     key={`${row.entry.date}-${index}`}
-                    className="flex items-center gap-3 px-3 py-2.5"
+                    className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5"
                   >
                     <Checkbox
                       checked={row.selected}
                       onCheckedChange={() => toggleRow(index)}
                       aria-label={`Selecionar ${row.entry.note}`}
+                      className="shrink-0"
                     />
                     <div className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-sm">{row.entry.note}</span>
@@ -286,7 +283,7 @@ export function OfxImportDialog({ open, onOpenChange }: OfxImportDialogProps) {
                       onValueChange={(value) => setRowCategory(index, value)}
                     >
                       <SelectTrigger
-                        className="w-32 shrink-0"
+                        className="ml-7 w-[calc(100%-1.75rem)] sm:ml-0 sm:w-32 sm:shrink-0"
                         aria-label={`Categoria de ${row.entry.note}`}
                       >
                         <SelectValue placeholder="Categoria" />
@@ -305,6 +302,10 @@ export function OfxImportDialog({ open, onOpenChange }: OfxImportDialogProps) {
                 ))}
               </ul>
             </div>
+
+            <p className="text-xs text-muted-foreground">
+              {formatCurrency(incomeTotal)} em entradas · {formatCurrency(expenseTotal)} em saídas
+            </p>
           </div>
         )}
 
