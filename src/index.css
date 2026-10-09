@@ -3,6 +3,18 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@custom-variant data-open (&:is([data-state=open], [data-open]));
+@custom-variant data-closed (&:is([data-state=closed], [data-closed]));
+@custom-variant data-active (&:is([data-state=active], [data-active]));
+@custom-variant data-checked (&:is([data-state=checked], [data-checked]));
+@custom-variant data-unchecked (&:is([data-state=unchecked], [data-unchecked]));
+@custom-variant data-disabled (&:is([data-state=disabled], [data-disabled]));
+@custom-variant data-placeholder (&:is([data-placeholder]));
+@custom-variant data-selected (&:is([data-state=selected], [data-selected]));
+@custom-variant data-inset (&:is([data-inset]));
+@custom-variant data-horizontal (&:is([data-orientation=horizontal]));
+@custom-variant data-vertical (&:is([data-orientation=vertical]));
+
 :root {
   --radius: 6px;
 

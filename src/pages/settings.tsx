@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
   Copy,
@@ -33,6 +34,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { SegmentedControl } from '@/components/segmented-control'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/store/auth-store'
 import { useBudget } from '@/store/budget-store'
@@ -45,6 +47,15 @@ const themeOptions: Array<{ value: ThemeValue; label: string; icon: typeof Sun }
   { value: 'dark', label: 'Escuro', icon: Moon },
   { value: 'system', label: 'Sistema', icon: Monitor },
 ]
+
+const TABS = [
+  { value: 'aparencia', label: 'Aparência' },
+  { value: 'privacidade', label: 'Privacidade' },
+  { value: 'dados', label: 'Dados' },
+  { value: 'integracao', label: 'Integração' },
+] as const
+
+type TabValue = (typeof TABS)[number]['value']
 
 const palette = [
   { name: 'Primary', value: '#6366F1' },
@@ -59,12 +70,24 @@ export function SettingsPage() {
   const { state, dispatch, reset } = useBudget()
   const { session } = useAuth()
   const { theme, setTheme } = useTheme()
+  const [params, setParams] = useSearchParams()
   const fileRef = useRef<HTMLInputElement>(null)
   const [resetOpen, setResetOpen] = useState(false)
   const [tokens, setTokens] = useState<IntegrationToken[]>([])
   const [tokenLabel, setTokenLabel] = useState('iPhone')
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [tokenBusy, setTokenBusy] = useState(false)
+
+  const tabParam = params.get('aba')
+  const tab: TabValue = TABS.some((item) => item.value === tabParam)
+    ? (tabParam as TabValue)
+    : 'aparencia'
+
+  const changeTab = (value: string) => {
+    const next = new URLSearchParams(params)
+    next.set('aba', value)
+    setParams(next)
+  }
 
   const refreshStatus = useCallback(async () => {
     const { data, error } = await supabase()
@@ -190,221 +213,238 @@ export function SettingsPage() {
         </p>
       </header>
 
-      <section className="grid gap-5 lg:grid-cols-2">
-        <Card className="gap-0">
-          <CardHeader className="border-b border-border pb-4">
-            <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-              Aparência
-            </CardTitle>
-            <CardDescription>O tema é aplicado imediatamente em toda a interface.</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-5">
-            <SegmentedControl<ThemeValue>
-              label="Tema da interface"
-              value={(theme as ThemeValue) ?? 'system'}
-              onChange={setTheme}
-              options={themeOptions.map((option) => ({
-                value: option.value,
-                label: option.label,
-                icon: option.icon,
-              }))}
-            />
+      <Tabs value={tab} onValueChange={changeTab}>
+        <TabsList className="w-full sm:w-fit">
+          {TABS.map((item) => (
+            <TabsTrigger key={item.value} value={item.value}>
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-            <div className="mt-5 flex flex-col gap-3">
-              <p className="text-overline">Cores do sistema</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {palette.map((token) => (
-                  <div
-                    key={token.name}
-                    className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2"
-                  >
-                    <span
-                      className="size-4 shrink-0 rounded-[4px] border border-border"
-                      style={{ backgroundColor: token.value }}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                      {token.name}
-                    </span>
-                    <span className="font-mono text-[10px] text-neutral uppercase">
-                      {token.value}
-                    </span>
-                  </div>
-                ))}
+        <TabsContent value="aparencia">
+          <Card className="gap-0">
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+                Aparência
+              </CardTitle>
+              <CardDescription>
+                O tema é aplicado imediatamente em toda a interface.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <SegmentedControl<ThemeValue>
+                label="Tema da interface"
+                value={(theme as ThemeValue) ?? 'system'}
+                onChange={setTheme}
+                options={themeOptions.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  icon: option.icon,
+                }))}
+              />
+
+              <div className="mt-5 flex flex-col gap-3">
+                <p className="text-overline">Cores do sistema</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {palette.map((token) => (
+                    <div
+                      key={token.name}
+                      className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2"
+                    >
+                      <span
+                        className="size-4 shrink-0 rounded-[4px] border border-border"
+                        style={{ backgroundColor: token.value }}
+                      />
+                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                        {token.name}
+                      </span>
+                      <span className="font-mono text-[10px] text-neutral uppercase">
+                        {token.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Card className="gap-0">
-          <CardHeader className="border-b border-border pb-4">
-            <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-              Privacidade
-            </CardTitle>
-            <CardDescription>Controle como os valores aparecem na tela.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 pt-5">
-            <PreferenceRow
-              id="privacy"
-              checked={state.settings.privacyMode}
-              onCheckedChange={(checked) =>
-                dispatch({ type: 'settings/update', settings: { privacyMode: checked === true } })
-              }
-              label="Ocultar valores sensíveis"
-              description="Substitui todos os valores por pontos na interface."
-              icon={state.settings.privacyMode ? <EyeOff /> : <Eye />}
-            />
-            <PreferenceRow
-              id="compact"
-              checked={state.settings.compactValues ?? false}
-              onCheckedChange={(checked) =>
-                dispatch({ type: 'settings/update', settings: { compactValues: checked === true } })
-              }
-              label="Valores compactos nos indicadores"
-              description="Mostra grandes montantes no formato R$ 12,3 mil."
-              icon={<Download />}
-            />
-            <Separator />
-            <p className="text-xs text-muted-foreground">
-              Os dados ficam salvos na sua conta e sincronizam entre dispositivos.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-
-      <Card className="gap-0">
-        <CardHeader className="border-b border-border pb-4">
-          <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-            Dados
-          </CardTitle>
-          <CardDescription>
-            Exporte um backup, restaure um arquivo ou redefina os dados da conta.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={exportData}>
-              <Download />
-              Exportar JSON
-            </Button>
-            <Button variant="outline" onClick={() => fileRef.current?.click()}>
-              <Upload />
-              Importar JSON
-            </Button>
-            <Button variant="destructive" onClick={() => setResetOpen(true)}>
-              <RotateCcw />
-              Redefinir dados
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/json"
-              className="sr-only"
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) void importData(file)
-                event.target.value = ''
-              }}
-            />
-          </div>
-
-          <dl className="mt-6 grid gap-3 sm:grid-cols-3">
-            <DataPoint label="Transações" value={String(state.transactions.length)} />
-            <DataPoint label="Categorias" value={String(state.categories.length)} />
-            <DataPoint label="Orçamentos ativos" value={String(Object.keys(state.budgets).length)} />
-          </dl>
-        </CardContent>
-      </Card>
-
-      <Card className="gap-0">
-        <CardHeader className="border-b border-border pb-4">
-          <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-            Acesso rápido (iPhone)
-          </CardTitle>
-          <CardDescription>
-            Gere tokens para o Atalho do iPhone registrar gastos direto na sua conta, sem senha.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 pt-5">
-          {createdToken ? (
-            <div className="rounded-md border border-border bg-muted/50 p-3">
+        <TabsContent value="privacidade">
+          <Card className="gap-0">
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+                Privacidade
+              </CardTitle>
+              <CardDescription>Controle como os valores aparecem na tela.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 pt-5">
+              <PreferenceRow
+                id="privacy"
+                checked={state.settings.privacyMode}
+                onCheckedChange={(checked) =>
+                  dispatch({ type: 'settings/update', settings: { privacyMode: checked === true } })
+                }
+                label="Ocultar valores sensíveis"
+                description="Substitui todos os valores por pontos na interface."
+                icon={state.settings.privacyMode ? <EyeOff /> : <Eye />}
+              />
+              <PreferenceRow
+                id="compact"
+                checked={state.settings.compactValues ?? false}
+                onCheckedChange={(checked) =>
+                  dispatch({
+                    type: 'settings/update',
+                    settings: { compactValues: checked === true },
+                  })
+                }
+                label="Valores compactos nos indicadores"
+                description="Mostra grandes montantes no formato R$ 12,3 mil."
+                icon={<Download />}
+              />
+              <Separator />
               <p className="text-xs text-muted-foreground">
-                Novo token (exibido apenas uma vez — guarde-o agora):
+                Os dados ficam salvos na sua conta e sincronizam entre dispositivos.
               </p>
-              <div className="mt-2 flex items-center gap-2">
-                <code className="min-w-0 flex-1 truncate font-mono text-sm">{createdToken}</code>
-                <Button variant="outline" size="sm" onClick={() => void copyToken()}>
-                  <Copy />
-                  Copiar
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="dados">
+          <Card className="gap-0">
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+                Dados
+              </CardTitle>
+              <CardDescription>
+                Exporte um backup, restaure um arquivo ou redefina os dados da conta.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" onClick={exportData}>
+                  <Download />
+                  Exportar JSON
+                </Button>
+                <Button variant="outline" onClick={() => fileRef.current?.click()}>
+                  <Upload />
+                  Importar JSON
+                </Button>
+                <Button variant="destructive" onClick={() => setResetOpen(true)}>
+                  <RotateCcw />
+                  Redefinir dados
+                </Button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="application/json"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) void importData(file)
+                    event.target.value = ''
+                  }}
+                />
+              </div>
+
+              <dl className="mt-6 grid gap-3 sm:grid-cols-3">
+                <DataPoint label="Transações" value={String(state.transactions.length)} />
+                <DataPoint label="Categorias" value={String(state.categories.length)} />
+                <DataPoint
+                  label="Orçamentos ativos"
+                  value={String(Object.keys(state.budgets).length)}
+                />
+              </dl>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="integracao">
+          <Card className="gap-0">
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+                Acesso rápido (iPhone)
+              </CardTitle>
+              <CardDescription>
+                Gere tokens para o Atalho do iPhone registrar gastos direto na sua conta, sem senha.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 pt-5">
+              {createdToken ? (
+                <div className="rounded-md border border-border bg-muted/50 p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Novo token (exibido apenas uma vez — guarde-o agora):
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="min-w-0 flex-1 truncate font-mono text-sm">{createdToken}</code>
+                    <Button variant="outline" size="sm" onClick={() => void copyToken()}>
+                      <Copy />
+                      Copiar
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="token-label">Nome</Label>
+                  <Input
+                    id="token-label"
+                    value={tokenLabel}
+                    onChange={(event) => setTokenLabel(event.target.value)}
+                    placeholder="iPhone"
+                    className="h-9 w-44"
+                  />
+                </div>
+                <Button onClick={() => void generateToken()} disabled={tokenBusy}>
+                  <KeyRound />
+                  Gerar token
                 </Button>
               </div>
-            </div>
-          ) : null}
 
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="token-label">Nome</Label>
-              <Input
-                id="token-label"
-                value={tokenLabel}
-                onChange={(event) => setTokenLabel(event.target.value)}
-                placeholder="iPhone"
-                className="h-9 w-44"
-              />
-            </div>
-            <Button onClick={() => void generateToken()} disabled={tokenBusy}>
-              <KeyRound />
-              Gerar token
-            </Button>
-          </div>
+              {tokens.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nenhum token gerado ainda.</p>
+              ) : (
+                <ul className="divide-y divide-border rounded-md border border-border">
+                  {tokens.map((token) => (
+                    <li key={token.id} className="flex items-center gap-3 px-3 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{token.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          Criado {formatTokenDate(token.created_at)} ·{' '}
+                          {token.last_used_at
+                            ? `último uso ${formatTokenDate(token.last_used_at)}`
+                            : 'nunca usado'}
+                        </span>
+                      </span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => void deleteToken(token.id)}
+                      >
+                        <Trash2 />
+                        Apagar
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-          {tokens.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum token gerado ainda.</p>
-          ) : (
-            <ul className="divide-y divide-border rounded-md border border-border">
-              {tokens.map((token) => (
-                <li key={token.id} className="flex items-center gap-3 px-3 py-2.5">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{token.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      Criado {formatTokenDate(token.created_at)} ·{' '}
-                      {token.last_used_at
-                        ? `último uso ${formatTokenDate(token.last_used_at)}`
-                        : 'nunca usado'}
-                    </span>
-                  </span>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => void deleteToken(token.id)}
-                  >
-                    <Trash2 />
-                    Apagar
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
+              <p className="text-xs text-muted-foreground">
+                O token aparece só no momento da criação — apenas o hash dele fica salvo no banco.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-          <p className="text-xs text-muted-foreground">
-            O token aparece só no momento da criação — apenas o hash dele fica salvo no banco.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="gap-0">
-        <CardHeader className="border-b border-border pb-4">
-          <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-            Sobre
-          </CardTitle>
-          <CardDescription>Interface construída sobre o sistema de design Genesis.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-3 pt-5 text-sm text-muted-foreground">
-          <Badge variant="outline">Cofre 1.0</Badge>
-          <Badge variant="outline">React + shadcn/ui</Badge>
-          <Badge variant="outline">General Sans · DM Sans · JetBrains Mono</Badge>
-          <Badge variant="outline">Dark mode</Badge>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4 text-muted-foreground">
+        <span className="text-overline">Sobre</span>
+        <Badge variant="outline">Cofre 1.0</Badge>
+        <Badge variant="outline">React + shadcn/ui</Badge>
+        <Badge variant="outline">General Sans · DM Sans · JetBrains Mono</Badge>
+        <Badge variant="outline">Dark mode</Badge>
+      </div>
 
       <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
         <AlertDialogContent>
