@@ -300,11 +300,17 @@ export async function pushFullState(userId: string, state: AppState): Promise<vo
   const removedBudgets = await db.from('budgets').delete().eq('user_id', userId)
   must(removedBudgets, 'Falha ao limpar orçamentos')
 
+  const removedTransfers = await db.from('transfers').delete().eq('user_id', userId)
+  must(removedTransfers, 'Falha ao limpar transferências')
+
   const removedProjects = await db.from('projects').delete().eq('user_id', userId)
   must(removedProjects, 'Falha ao limpar projetos')
 
   const removedCategories = await db.from('categories').delete().eq('user_id', userId)
   must(removedCategories, 'Falha ao limpar categorias')
+
+  const removedWallets = await db.from('wallets').delete().eq('user_id', userId)
+  must(removedWallets, 'Falha ao limpar carteiras')
 
   await insertAll(userId, state)
 }
