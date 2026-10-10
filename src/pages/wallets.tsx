@@ -33,7 +33,7 @@ import { WalletFormDialog } from '@/components/wallet-form-dialog'
 import { monthKeyOf, relativeDay } from '@/lib/format'
 import { totalWealth, walletBalance, walletMonthFlow } from '@/lib/selectors'
 import { walletDotClass } from '@/lib/wallet-colors'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { AppState, Wallet } from '@/types'
 
 const CURRENT_MONTH = monthKeyOf(new Date())

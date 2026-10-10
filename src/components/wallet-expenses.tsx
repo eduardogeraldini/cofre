@@ -1,11 +1,11 @@
 import { WalletCards } from 'lucide-react'
 import { CategoryDonut, type DonutEntry } from '@/components/charts/category-donut'
-import { rampColor } from '@/components/charts/chart-primitives'
+import { rampColor } from '@/components/charts/chart-colors'
 import { EmptyState } from '@/components/empty-state'
 import { Money } from '@/components/money'
 import { expensesByWallet } from '@/lib/selectors'
 import { walletHex } from '@/lib/wallet-colors'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 
 export function WalletExpenses({ month }: { month: string }) {
   const { state } = useBudget()

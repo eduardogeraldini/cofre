@@ -20,7 +20,7 @@ import { Money } from '@/components/money'
 import { PageHeader } from '@/components/page-header'
 import { budgetUsage, categorySummaries } from '@/lib/selectors'
 import { monthKeyOf } from '@/lib/format'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { Category } from '@/types'
 
 const GRID_COLS =
@@ -28,7 +28,7 @@ const GRID_COLS =
 
 export function BudgetsPage() {
   const { state, dispatch } = useBudget()
-  const current = monthKeyOf(new Date())
+  const [current] = useState(() => monthKeyOf(new Date()))
 
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
   const [categoryTarget, setCategoryTarget] = useState<Category | null>(null)

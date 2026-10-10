@@ -29,7 +29,7 @@ import {
   transactionsInMonth,
 } from '@/lib/selectors'
 import { monthKeyOf, monthLabelLong } from '@/lib/format'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { CategorySummary, Transaction } from '@/types'
 
 const statusIndicator: Record<CategorySummary['status'], string> = {
@@ -42,8 +42,7 @@ export function DashboardPage() {
   const { state } = useBudget()
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Transaction | null>(null)
-
-  const current = monthKeyOf(new Date())
+  const [current] = useState(() => monthKeyOf(new Date()))
   const monthTxs = transactionsInMonth(state.transactions, current)
   const income = sumByType(monthTxs, 'income')
   const expense = sumByType(monthTxs, 'expense')

@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { parseISO } from 'date-fns'
@@ -26,7 +26,7 @@ import {
 import { SegmentedControl } from '@/components/segmented-control'
 import { parseAmount, toAmountInput } from '@/lib/money'
 import { toISODate } from '@/lib/format'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { Transaction, TxType } from '@/types'
 
 const schema = z
@@ -73,11 +73,13 @@ export function TransactionFormDialog({
   const walletOptions = useMemo(() => state.wallets, [state.wallets])
   const projects = useMemo(() => state.projects, [state.projects])
 
+  const [currentDate] = useState(() => toISODate(new Date()))
+
   const {
     control,
     handleSubmit,
     reset,
-    watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -87,12 +89,12 @@ export function TransactionFormDialog({
       categoryId: categories[0]?.id ?? '',
       walletId: transaction?.walletId ?? walletOptions[0]?.id ?? '',
       projectId: transaction?.projectId ?? '',
-      date: toISODate(new Date()),
+      date: currentDate,
       note: '',
     },
   })
 
-  const type = watch('type')
+  const type = useWatch({ control, name: 'type' })
   const options = useMemo(
     () => state.categories.filter((category) => category.type === type),
     [state.categories, type],
@@ -172,7 +174,7 @@ export function TransactionFormDialog({
                     field.onChange(value)
                     const first = state.categories.find((category) => category.type === value)
                     if (first) {
-                      reset({ ...watch(), categoryId: first.id, type: value })
+                      reset({ ...getValues(), categoryId: first.id, type: value })
                     }
                   }}
                   options={[

@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select'
 import { toISODate } from '@/lib/format'
 import { parseAmount } from '@/lib/money'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { Transfer } from '@/types'
 
 const TODAY = toISODate(new Date())

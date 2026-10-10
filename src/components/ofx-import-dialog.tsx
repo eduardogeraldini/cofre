@@ -23,7 +23,7 @@ import {
 import { formatCurrency, formatDate } from '@/lib/format'
 import { decodeOfx, guessCategory, isDuplicateOfExisting, parseOfx } from '@/lib/ofx'
 import type { OfxEntry } from '@/lib/ofx'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { Transaction } from '@/types'
 
 interface ReviewRow {

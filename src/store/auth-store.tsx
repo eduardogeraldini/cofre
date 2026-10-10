@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -15,16 +13,7 @@ import {
   type Session,
 } from '@/lib/auth'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-
-interface AuthContextValue {
-  session: Session | null
-  ready: boolean
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (name: string, email: string, password: string) => Promise<void>
-  signOut: () => void
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
+import { AuthContext } from '@/store/auth-context'
 
 function sessionFromUser(user: User): Session {
   const metaName = (user.user_metadata?.name as string | undefined)?.trim()
@@ -82,10 +71,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext)
-  if (!context) throw new Error('useAuth must be used within AuthProvider')
-  return context
 }

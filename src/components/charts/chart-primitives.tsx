@@ -1,6 +1,6 @@
 import { cn } from 'cn'
 import { formatCurrency } from '@/lib/format'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 
 interface ChartTooltipProps {
   active?: boolean
@@ -35,12 +35,6 @@ export function ChartTooltip({ active, label, payload, formatter }: ChartTooltip
       </div>
     </div>
   )
-}
-
-export function rampColor(index: number, total: number): string {
-  const t = total <= 1 ? 1 : index / (total - 1)
-  const mix = Math.round(96 - t * 64)
-  return `color-mix(in oklch, var(--foreground) ${mix}%, var(--background))`
 }
 
 export function ChartLegend({

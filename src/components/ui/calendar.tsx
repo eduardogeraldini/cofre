@@ -2,7 +2,7 @@ import * as React from "react"
 import { ptBR } from "date-fns/locale"
 import { cn } from "cn"
 import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
-import { buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
 
 function Calendar({
   className,

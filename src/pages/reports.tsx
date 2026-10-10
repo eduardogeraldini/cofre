@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { BalanceChart } from '@/components/charts/balance-chart'
 import { CategoryDonut, type DonutEntry } from '@/components/charts/category-donut'
-import { rampColor } from '@/components/charts/chart-primitives'
+import { rampColor } from '@/components/charts/chart-colors'
 import { CashFlowChart } from '@/components/charts/cash-flow-chart'
 import { EmptyState } from '@/components/empty-state'
 import { Money } from '@/components/money'
@@ -30,7 +30,7 @@ import {
   sumByType,
   transactionsInMonth,
 } from '@/lib/selectors'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { TxType } from '@/types'
 
 const MONTH_COUNT = 12
@@ -85,14 +85,10 @@ export function ReportsPage() {
 
   const breakdownTotal = entries.reduce((total, entry) => total + entry.value, 0)
 
-  const topExpenses = useMemo(
-    () =>
-      txs
-        .filter((tx) => tx.type === 'expense')
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 5),
-    [txs],
-  )
+  const topExpenses = txs
+    .filter((tx) => tx.type === 'expense')
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 5)
 
   return (
     <div className="flex flex-col gap-6">

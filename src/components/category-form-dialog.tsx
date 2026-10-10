@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -19,9 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CategoryIcon, categoryIconKeys } from '@/components/category-icon'
+import { CategoryIcon } from '@/components/category-icon'
+import { categoryIconKeys } from '@/components/category-icons'
 import { SegmentedControl } from '@/components/segmented-control'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { Category, TxType } from '@/types'
 
 const iconKeys = categoryIconKeys()
@@ -39,21 +40,33 @@ interface CategoryFormDialogProps {
 }
 
 export function CategoryFormDialog({ open, onOpenChange, category }: CategoryFormDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <CategoryFormFields
+          key={category?.id ?? 'new'}
+          category={category}
+          onOpenChange={onOpenChange}
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function CategoryFormFields({
+  category,
+  onOpenChange,
+}: {
+  category?: Category | null
+  onOpenChange: (open: boolean) => void
+}) {
   const { state, dispatch } = useBudget()
   const isEditing = Boolean(category)
 
-  const [name, setName] = useState('')
-  const [type, setType] = useState<TxType>('expense')
-  const [icon, setIcon] = useState(iconKeys[0])
+  const [name, setName] = useState(category?.name ?? '')
+  const [type, setType] = useState<TxType>(category?.type ?? 'expense')
+  const [icon, setIcon] = useState(category?.icon ?? 'shapes')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (!open) return
-    setName(category?.name ?? '')
-    setType(category?.type ?? 'expense')
-    setIcon(category?.icon ?? 'shapes')
-    setError('')
-  }, [open, category])
 
   const existingCount = useMemo(
     () => state.categories.filter((item) => item.type === type).length,
@@ -86,9 +99,8 @@ export function CategoryFormDialog({ open, onOpenChange, category }: CategoryFor
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+    <>
+      <DialogHeader>
           <DialogTitle className="font-display text-[19px] tracking-[-0.03em]">
             {isEditing ? 'Editar categoria' : 'Nova categoria'}
           </DialogTitle>
@@ -160,7 +172,6 @@ export function CategoryFormDialog({ open, onOpenChange, category }: CategoryFor
             {isEditing ? 'Salvar alterações' : 'Criar categoria'}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </>
   )
 }

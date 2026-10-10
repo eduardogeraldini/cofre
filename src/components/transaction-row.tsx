@@ -22,7 +22,7 @@ import { CategoryIcon } from '@/components/category-icon'
 import { Money } from '@/components/money'
 import { relativeDay } from '@/lib/format'
 import { walletDotClass } from '@/lib/wallet-colors'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { Transaction } from '@/types'
 
 interface TransactionRowProps {

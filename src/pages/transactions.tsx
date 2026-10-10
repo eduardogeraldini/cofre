@@ -22,7 +22,7 @@ import { TransactionFormDialog } from '@/components/transaction-form-dialog'
 import { OfxImportDialog } from '@/components/ofx-import-dialog'
 import { monthKey, monthLabel } from '@/lib/format'
 import { sumByType } from '@/lib/selectors'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { Transaction, TxFilter } from '@/types'
 
 const ALL = 'all'
@@ -41,14 +41,15 @@ export function TransactionsPage() {
   const [projectFilter, setProjectFilter] = useState(ALL)
   const [month, setMonth] = useState(ALL)
 
+  const openFromUrl = params.get('new') === '1'
+  if (openFromUrl && !formOpen) setFormOpen(true)
+
   useEffect(() => {
-    if (params.get('new') === '1') {
-      setFormOpen(true)
-      const next = new URLSearchParams(params)
-      next.delete('new')
-      setParams(next, { replace: true })
-    }
-  }, [params, setParams])
+    if (!openFromUrl) return
+    const next = new URLSearchParams(params)
+    next.delete('new')
+    setParams(next, { replace: true })
+  }, [openFromUrl, params, setParams])
 
   const months = useMemo(() => {
     const keys = new Set(state.transactions.map((tx) => monthKey(tx.date)))

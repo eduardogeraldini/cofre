@@ -28,9 +28,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { useCommand } from '@/components/command-palette'
-import { useBudget } from '@/store/budget-store'
-import { useAuth } from '@/store/auth-store'
+import { useCommand } from '@/components/command-context'
+import { useBudget } from '@/store/budget-context'
+import { useAuth } from '@/store/auth-context'
 import { initials } from '@/lib/auth'
 
 const navItems = [

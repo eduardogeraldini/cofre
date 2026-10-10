@@ -12,7 +12,8 @@ import { SignupPage } from '@/pages/signup'
 import { TransactionsPage } from '@/pages/transactions'
 import { WalletsPage } from '@/pages/wallets'
 import { BudgetProvider } from '@/store/budget-store'
-import { AuthProvider, useAuth } from '@/store/auth-store'
+import { AuthProvider } from '@/store/auth-store'
+import { useAuth } from '@/store/auth-context'
 
 function AppLayout() {
   return (

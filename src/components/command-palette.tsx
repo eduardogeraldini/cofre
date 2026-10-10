@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Eye,
@@ -28,15 +28,9 @@ import {
 import { CategoryIcon } from '@/components/category-icon'
 import { formatCurrency, relativeDay } from '@/lib/format'
 import { searchTransactions } from '@/lib/selectors'
-import { useBudget } from '@/store/budget-store'
-import { useAuth } from '@/store/auth-store'
-
-interface CommandContextValue {
-  open: boolean
-  setOpen: (open: boolean) => void
-}
-
-const CommandContext = createContext<CommandContextValue | null>(null)
+import { useBudget } from '@/store/budget-context'
+import { useAuth } from '@/store/auth-context'
+import { CommandContext, useCommand } from '@/components/command-context'
 
 const navItems = [
   { to: '/', label: 'Painel', icon: LayoutDashboard },
@@ -64,12 +58,6 @@ export function CommandProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ open, setOpen }), [open])
 
   return <CommandContext.Provider value={value}>{children}</CommandContext.Provider>
-}
-
-export function useCommand(): CommandContextValue {
-  const context = useContext(CommandContext)
-  if (!context) throw new Error('useCommand must be used within CommandProvider')
-  return context
 }
 
 export function CommandPalette() {

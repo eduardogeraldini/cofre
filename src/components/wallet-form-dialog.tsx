@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { parseAmount, toAmountInput } from '@/lib/money'
 import { WALLET_COLORS, walletDotClass } from '@/lib/wallet-colors'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 import type { Wallet } from '@/types'
 
 interface WalletFormDialogProps {

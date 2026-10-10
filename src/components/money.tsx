@@ -1,6 +1,6 @@
 import { cn } from 'cn'
 import { formatCompact, formatCurrency } from '@/lib/format'
-import { useBudget } from '@/store/budget-store'
+import { useBudget } from '@/store/budget-context'
 
 interface MoneyProps {
   value: number

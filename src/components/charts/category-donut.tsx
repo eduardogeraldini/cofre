@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
-import { rampColor } from '@/components/charts/chart-primitives'
+import { rampColor } from '@/components/charts/chart-colors'
 
 export interface DonutEntry {
   id: string
