@@ -19,6 +19,7 @@ export function readStateSnapshot(): AppState | null {
     return {
       ...parsed,
       wallets: Array.isArray(parsed.wallets) ? parsed.wallets : [],
+      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
       transfers: Array.isArray(parsed.transfers) ? parsed.transfers : [],
     } as AppState
   } catch {

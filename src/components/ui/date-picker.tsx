@@ -1,6 +1,5 @@
 import * as React from "react"
 import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
 import { cn } from "cn"
 import { CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,7 +32,7 @@ function DatePicker({ value, onChange, className, id, ...props }: DatePickerProp
           )}
         >
           <CalendarIcon />
-          {value ? format(value, "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : "Selecione a data"}
+          {value ? format(value, "dd/MM/yyyy") : "Selecione a data"}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

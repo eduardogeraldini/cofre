@@ -42,6 +42,7 @@ export function TransactionRow({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const category = state.categories.find((item) => item.id === transaction.categoryId)
   const wallet = state.wallets.find((item) => item.id === transaction.walletId)
+  const project = state.projects.find((item) => item.id === transaction.projectId)
   const isIncome = transaction.type === 'income'
 
   const remove = () => {
@@ -56,11 +57,19 @@ export function TransactionRow({
       </span>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground">
-          {transaction.note || category?.name || 'Sem descrição'}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-sm font-medium text-foreground">
+            {transaction.note || category?.name || 'Sem descrição'}
+          </p>
+          {project ? (
+            <span className="hidden max-w-28 shrink-0 truncate rounded-full border border-border px-1.5 py-px text-[10px] font-medium text-muted-foreground md:inline-flex">
+              {project.name}
+            </span>
+          ) : null}
+        </div>
         <p className="truncate text-xs text-muted-foreground">
           <span className="md:hidden">
+            {project ? `${project.name} · ` : ''}
             {category?.name ?? '—'}
             {wallet ? ` · ${wallet.name}` : ''} ·{' '}
           </span>

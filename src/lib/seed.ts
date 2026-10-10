@@ -38,6 +38,7 @@ export function createOnboardingState(): AppState {
     version: 1,
     categories: defaultCategories(),
     wallets: [{ id: crypto.randomUUID(), name: 'Caixa', color: 'indigo', initialBalance: 0 }],
+    projects: [],
     transfers: [],
     transactions: [],
     budgets: {},

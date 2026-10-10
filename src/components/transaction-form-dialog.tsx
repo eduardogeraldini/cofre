@@ -11,7 +11,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -36,6 +35,7 @@ const schema = z
     amount: z.string().min(1, 'Informe o valor'),
     categoryId: z.string().min(1, 'Selecione uma categoria'),
     walletId: z.string(),
+    projectId: z.string(),
     date: z.string().min(1, 'Selecione a data'),
     note: z.string().max(80, 'Máximo de 80 caracteres'),
   })
@@ -71,6 +71,7 @@ export function TransactionFormDialog({
   )
 
   const walletOptions = useMemo(() => state.wallets, [state.wallets])
+  const projects = useMemo(() => state.projects, [state.projects])
 
   const {
     control,
@@ -85,6 +86,7 @@ export function TransactionFormDialog({
       amount: '',
       categoryId: categories[0]?.id ?? '',
       walletId: transaction?.walletId ?? walletOptions[0]?.id ?? '',
+      projectId: transaction?.projectId ?? '',
       date: toISODate(new Date()),
       note: '',
     },
@@ -105,6 +107,7 @@ export function TransactionFormDialog({
             amount: toAmountInput(transaction.amount),
             categoryId: transaction.categoryId,
             walletId: transaction.walletId ?? '',
+            projectId: transaction.projectId ?? '',
             date: transaction.date,
             note: transaction.note,
           }
@@ -113,6 +116,7 @@ export function TransactionFormDialog({
             amount: '',
             categoryId: categories[0]?.id ?? '',
             walletId: walletOptions[0]?.id ?? '',
+            projectId: '',
             date: toISODate(new Date()),
             note: '',
           },
@@ -126,6 +130,7 @@ export function TransactionFormDialog({
       amount: Math.round(parseAmount(values.amount) * 100) / 100,
       categoryId: values.categoryId,
       walletId: values.walletId || null,
+      projectId: values.projectId || null,
       date: values.date,
       note: values.note.trim(),
     }
@@ -288,17 +293,57 @@ export function TransactionFormDialog({
                 />
               )}
             />
-            {errors.note ? <p className="text-xs text-destructive">{errors.note.message}</p> : null}
+            {errors.note ? (
+              <p className="text-xs text-destructive">{errors.note.message}</p>
+            ) : null}
           </div>
 
-          <DialogFooter className="sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isEditing ? 'Salvar alterações' : 'Adicionar transação'}
-            </Button>
-          </DialogFooter>
+          <div
+            className={`-mx-4 -mb-4 flex flex-col gap-2 rounded-b-lg border-t bg-muted/50 p-4 sm:flex-row sm:flex-wrap sm:items-center ${
+              projects.length > 0 ? 'sm:justify-between' : 'sm:justify-end'
+            }`}
+          >
+            {projects.length > 0 ? (
+              <Controller
+                control={control}
+                name="projectId"
+                render={({ field }) => (
+                  <Select
+                    value={field.value || 'none'}
+                    onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className={
+                        field.value
+                          ? 'w-full justify-start font-normal sm:w-44'
+                          : 'w-full justify-start border-dashed font-normal text-muted-foreground sm:w-44'
+                      }
+                      aria-label="Projeto"
+                    >
+                      <SelectValue placeholder="Vincular a projeto…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum projeto</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            ) : null}
+            <div className="flex flex-row justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isEditing ? 'Salvar alterações' : 'Adicionar transação'}
+              </Button>
+            </div>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

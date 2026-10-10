@@ -162,3 +162,33 @@ create policy "tokens own rows" on public.integration_tokens
 -- unica forma de desativar (sem estado de revogado / sem historico).
 revoke all on public.integration_tokens from public, anon, authenticated;
 grant select, insert, update, delete on public.integration_tokens to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Projetos (metas/objetivos — ex.: Casamento, Viagem)
+--
+-- Etiqueta opcional nas transações: o app lista os projetos, o formulário de
+-- transação oferece um select "Projeto" e a lista de transações ganha um
+-- filtro. Excluir um projeto no app desvincula as transações (project_id ->
+-- null); o ON DELETE SET NULL do banco é só uma rede de segurança.
+
+create table public.projects (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(name) between 1 and 60),
+  created_at timestamptz not null default now()
+);
+
+alter table public.transactions add column project_id uuid
+  references public.projects (id) on delete set null;
+
+create index transactions_user_project_idx on public.transactions (user_id, project_id);
+
+alter table public.projects enable row level security;
+
+create policy "projects own rows" on public.projects
+  for all to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+revoke all on public.projects from public, anon, authenticated;
+grant select, insert, update, delete on public.projects to authenticated;

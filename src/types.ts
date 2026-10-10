@@ -14,6 +14,11 @@ export interface Wallet {
   initialBalance: number
 }
 
+export interface Project {
+  id: string
+  name: string
+}
+
 export interface Transfer {
   id: string
   fromWalletId: string
@@ -29,6 +34,7 @@ export interface Transaction {
   amount: number
   categoryId: string
   walletId?: string | null
+  projectId?: string | null
   date: string
   note: string
 }
@@ -42,6 +48,7 @@ export interface AppState {
   version: number
   categories: Category[]
   wallets: Wallet[]
+  projects: Project[]
   transfers: Transfer[]
   transactions: Transaction[]
   budgets: Record<string, number>

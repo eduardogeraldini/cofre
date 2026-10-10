@@ -1,4 +1,13 @@
-import type { AppState, Category, Settings, Transaction, Transfer, TxType, Wallet } from '@/types'
+import type {
+  AppState,
+  Category,
+  Project,
+  Settings,
+  Transaction,
+  Transfer,
+  TxType,
+  Wallet,
+} from '@/types'
 import { supabase } from '@/lib/supabase'
 
 interface CategoryRow {
@@ -13,6 +22,11 @@ interface WalletRow {
   name: string
   color: string
   initial_balance: number | string
+}
+
+interface ProjectRow {
+  id: string
+  name: string
 }
 
 interface TransferRow {
@@ -30,6 +44,7 @@ interface TransactionRow {
   amount: number | string
   category_id: string
   wallet_id: string | null
+  project_id: string | null
   date: string
   note: string | null
 }
@@ -56,6 +71,10 @@ function fromWalletRow(row: WalletRow): Wallet {
   return { id: row.id, name: row.name, color: row.color, initialBalance: Number(row.initial_balance) }
 }
 
+function fromProjectRow(row: ProjectRow): Project {
+  return { id: row.id, name: row.name }
+}
+
 function fromTransferRow(row: TransferRow): Transfer {
   return {
     id: row.id,
@@ -74,6 +93,7 @@ function fromTransactionRow(row: TransactionRow): Transaction {
     amount: Number(row.amount),
     categoryId: row.category_id,
     walletId: row.wallet_id,
+    projectId: row.project_id,
     date: row.date,
     note: row.note ?? '',
   }
@@ -99,6 +119,10 @@ function toWalletRow(userId: string, wallet: Wallet) {
   }
 }
 
+function toProjectRow(userId: string, project: Project) {
+  return { user_id: userId, id: project.id, name: project.name }
+}
+
 function toTransferRow(userId: string, transfer: Transfer) {
   return {
     user_id: userId,
@@ -119,6 +143,7 @@ function toTransactionRow(userId: string, tx: Transaction) {
     amount: tx.amount,
     category_id: tx.categoryId,
     wallet_id: tx.walletId ?? null,
+    project_id: tx.projectId ?? null,
     date: tx.date,
     note: tx.note,
   }
@@ -140,23 +165,26 @@ function toSettingsRow(userId: string, settings: Settings) {
 export async function loadRemoteState(userId: string): Promise<AppState | null> {
   const db = supabase()
 
-  const [categories, wallets, transfers, transactions, budgets, settings] = await Promise.all([
-    db.from('categories').select('id, name, type, icon').eq('user_id', userId),
-    db.from('wallets').select('id, name, color, initial_balance').eq('user_id', userId),
-    db
-      .from('transfers')
-      .select('id, from_wallet_id, to_wallet_id, amount, date, note')
-      .eq('user_id', userId),
-    db
-      .from('transactions')
-      .select('id, type, amount, category_id, wallet_id, date, note')
-      .eq('user_id', userId),
-    db.from('budgets').select('category_id, amount').eq('user_id', userId),
-    db.from('settings').select('privacy_mode, compact_values').eq('user_id', userId).maybeSingle(),
-  ])
+  const [categories, wallets, projects, transfers, transactions, budgets, settings] =
+    await Promise.all([
+      db.from('categories').select('id, name, type, icon').eq('user_id', userId),
+      db.from('wallets').select('id, name, color, initial_balance').eq('user_id', userId),
+      db.from('projects').select('id, name').eq('user_id', userId),
+      db
+        .from('transfers')
+        .select('id, from_wallet_id, to_wallet_id, amount, date, note')
+        .eq('user_id', userId),
+      db
+        .from('transactions')
+        .select('id, type, amount, category_id, wallet_id, project_id, date, note')
+        .eq('user_id', userId),
+      db.from('budgets').select('category_id, amount').eq('user_id', userId),
+      db.from('settings').select('privacy_mode, compact_values').eq('user_id', userId).maybeSingle(),
+    ])
 
   must(categories, 'Falha ao carregar categorias')
   must(wallets, 'Falha ao carregar carteiras')
+  must(projects, 'Falha ao carregar projetos')
   must(transfers, 'Falha ao carregar transferências')
   must(transactions, 'Falha ao carregar transações')
   must(budgets, 'Falha ao carregar orçamentos')
@@ -164,6 +192,7 @@ export async function loadRemoteState(userId: string): Promise<AppState | null> 
 
   const categoryRows = (categories.data ?? []) as CategoryRow[]
   const walletRows = (wallets.data ?? []) as WalletRow[]
+  const projectRows = (projects.data ?? []) as ProjectRow[]
   const transferRows = (transfers.data ?? []) as TransferRow[]
   const transactionRows = (transactions.data ?? []) as TransactionRow[]
   const budgetRows = (budgets.data ?? []) as BudgetRow[]
@@ -172,6 +201,7 @@ export async function loadRemoteState(userId: string): Promise<AppState | null> 
   if (
     categoryRows.length === 0 &&
     walletRows.length === 0 &&
+    projectRows.length === 0 &&
     transferRows.length === 0 &&
     transactionRows.length === 0 &&
     budgetRows.length === 0
@@ -183,6 +213,7 @@ export async function loadRemoteState(userId: string): Promise<AppState | null> 
     version: 1,
     categories: categoryRows.map(fromCategoryRow),
     wallets: walletRows.map(fromWalletRow),
+    projects: projectRows.map(fromProjectRow),
     transfers: transferRows.map(fromTransferRow),
     transactions: transactionRows.map(fromTransactionRow),
     budgets: Object.fromEntries(
@@ -214,6 +245,15 @@ async function insertAll(userId: string, state: AppState): Promise<void> {
         onConflict: 'user_id,id',
       })
     must({ error }, 'Falha ao salvar categorias')
+  }
+
+  if (state.projects.length > 0) {
+    const { error } = await db
+      .from('projects')
+      .upsert(state.projects.map((project) => toProjectRow(userId, project)), {
+        onConflict: 'id',
+      })
+    must({ error }, 'Falha ao salvar projetos')
   }
 
   if (state.transactions.length > 0) {
@@ -260,6 +300,9 @@ export async function pushFullState(userId: string, state: AppState): Promise<vo
   const removedBudgets = await db.from('budgets').delete().eq('user_id', userId)
   must(removedBudgets, 'Falha ao limpar orçamentos')
 
+  const removedProjects = await db.from('projects').delete().eq('user_id', userId)
+  must(removedProjects, 'Falha ao limpar projetos')
+
   const removedCategories = await db.from('categories').delete().eq('user_id', userId)
   must(removedCategories, 'Falha ao limpar categorias')
 
@@ -290,6 +333,14 @@ export async function syncDiff(
     (wallet) => JSON.stringify(prevWallets.get(wallet.id)) !== JSON.stringify(wallet),
   )
   const walletsRemoved = prev.wallets.filter((wallet) => !nextWallets.has(wallet.id))
+
+  const prevProjects = new Map(prev.projects.map((project) => [project.id, project]))
+  const nextProjects = new Map(next.projects.map((project) => [project.id, project]))
+
+  const projectsUpsert = next.projects.filter(
+    (project) => JSON.stringify(prevProjects.get(project.id)) !== JSON.stringify(project),
+  )
+  const projectsRemoved = prev.projects.filter((project) => !nextProjects.has(project.id))
 
   const prevTransfers = new Map(prev.transfers.map((transfer) => [transfer.id, transfer]))
   const nextTransfers = new Map(next.transfers.map((transfer) => [transfer.id, transfer]))
@@ -337,6 +388,15 @@ export async function syncDiff(
         onConflict: 'user_id,id',
       })
     must({ error }, 'Falha ao salvar categorias')
+  }
+
+  if (projectsUpsert.length > 0) {
+    const { error } = await db
+      .from('projects')
+      .upsert(projectsUpsert.map((project) => toProjectRow(userId, project)), {
+        onConflict: 'id',
+      })
+    must({ error }, 'Falha ao salvar projetos')
   }
 
   if (transactionsUpsert.length > 0) {
@@ -410,6 +470,15 @@ export async function syncDiff(
       .eq('user_id', userId)
       .in('id', transfersRemoved.map((transfer) => transfer.id))
     must({ error }, 'Falha ao remover transferências')
+  }
+
+  if (projectsRemoved.length > 0) {
+    const { error } = await db
+      .from('projects')
+      .delete()
+      .eq('user_id', userId)
+      .in('id', projectsRemoved.map((project) => project.id))
+    must({ error }, 'Falha ao remover projetos')
   }
 
   if (walletsRemoved.length > 0) {

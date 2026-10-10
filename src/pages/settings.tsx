@@ -9,6 +9,8 @@ import {
   KeyRound,
   Monitor,
   Moon,
+  Pencil,
+  Plus,
   RotateCcw,
   Sun,
   Trash2,
@@ -38,7 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/store/auth-store'
 import { useBudget } from '@/store/budget-store'
-import type { AppState } from '@/types'
+import type { AppState, Project } from '@/types'
 
 type ThemeValue = 'light' | 'dark' | 'system'
 
@@ -77,6 +79,10 @@ export function SettingsPage() {
   const [tokenLabel, setTokenLabel] = useState('iPhone')
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [tokenBusy, setTokenBusy] = useState(false)
+  const [projectName, setProjectName] = useState('')
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [editName, setEditName] = useState('')
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
 
   const tabParam = params.get('aba')
   const tab: TabValue = TABS.some((item) => item.value === tabParam)
@@ -179,6 +185,42 @@ export function SettingsPage() {
     toast.success('Token copiado')
   }
 
+  const addProject = () => {
+    const name = projectName.trim()
+    if (!name) return
+    if (state.projects.some((project) => project.name.toLowerCase() === name.toLowerCase())) {
+      toast.error('Já existe um projeto com esse nome')
+      return
+    }
+    dispatch({ type: 'project/add', project: { id: crypto.randomUUID(), name } })
+    setProjectName('')
+    toast.success('Projeto criado')
+  }
+
+  const saveProjectName = () => {
+    const name = editName.trim()
+    if (!editingProject || !name) return
+    if (
+      state.projects.some(
+        (project) =>
+          project.id !== editingProject.id && project.name.toLowerCase() === name.toLowerCase(),
+      )
+    ) {
+      toast.error('Já existe um projeto com esse nome')
+      return
+    }
+    dispatch({ type: 'project/update', project: { ...editingProject, name } })
+    setEditingProject(null)
+    toast.success('Projeto atualizado')
+  }
+
+  const removeProject = () => {
+    if (!projectToDelete) return
+    dispatch({ type: 'project/delete', id: projectToDelete.id })
+    setProjectToDelete(null)
+    toast.success('Projeto removido', { description: 'As transações foram desvinculadas.' })
+  }
+
   const exportData = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -192,12 +234,25 @@ export function SettingsPage() {
 
   const importData = async (file: File) => {
     try {
-      const parsed = JSON.parse(await file.text()) as AppState
+      const parsed = JSON.parse(await file.text()) as Partial<AppState>
       if (!parsed || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.categories)) {
         throw new Error('formato inválido')
       }
-      dispatch({ type: 'state/import', state: parsed })
-      toast.success('Dados importados', { description: `${parsed.transactions.length} transações` })
+      const imported: AppState = {
+        version: parsed.version ?? 1,
+        categories: parsed.categories,
+        wallets: parsed.wallets ?? [],
+        projects: parsed.projects ?? [],
+        transfers: parsed.transfers ?? [],
+        transactions: parsed.transactions,
+        budgets: parsed.budgets ?? {},
+        settings: {
+          privacyMode: parsed.settings?.privacyMode ?? false,
+          compactValues: parsed.settings?.compactValues ?? true,
+        },
+      }
+      dispatch({ type: 'state/import', state: imported })
+      toast.success('Dados importados', { description: `${imported.transactions.length} transações` })
     } catch {
       toast.error('Não foi possível importar', { description: 'Arquivo inválido ou corrompido.' })
     }
@@ -311,52 +366,170 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="dados">
-          <Card className="gap-0">
-            <CardHeader className="border-b border-border pb-4">
-              <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-                Dados
-              </CardTitle>
-              <CardDescription>
-                Exporte um backup, restaure um arquivo ou redefina os dados da conta.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-5">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" onClick={exportData}>
-                  <Download />
-                  Exportar JSON
-                </Button>
-                <Button variant="outline" onClick={() => fileRef.current?.click()}>
-                  <Upload />
-                  Importar JSON
-                </Button>
-                <Button variant="destructive" onClick={() => setResetOpen(true)}>
-                  <RotateCcw />
-                  Redefinir dados
-                </Button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="application/json"
-                  className="sr-only"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file) void importData(file)
-                    event.target.value = ''
-                  }}
-                />
-              </div>
+          <div className="flex flex-col gap-6">
+            <Card className="gap-0">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+                  Dados
+                </CardTitle>
+                <CardDescription>
+                  Exporte um backup, restaure um arquivo ou redefina os dados da conta.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" onClick={exportData}>
+                    <Download />
+                    Exportar JSON
+                  </Button>
+                  <Button variant="outline" onClick={() => fileRef.current?.click()}>
+                    <Upload />
+                    Importar JSON
+                  </Button>
+                  <Button variant="destructive" onClick={() => setResetOpen(true)}>
+                    <RotateCcw />
+                    Redefinir dados
+                  </Button>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="application/json"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      if (file) void importData(file)
+                      event.target.value = ''
+                    }}
+                  />
+                </div>
 
-              <dl className="mt-6 grid gap-3 sm:grid-cols-3">
-                <DataPoint label="Transações" value={String(state.transactions.length)} />
-                <DataPoint label="Categorias" value={String(state.categories.length)} />
-                <DataPoint
-                  label="Orçamentos ativos"
-                  value={String(Object.keys(state.budgets).length)}
-                />
-              </dl>
-            </CardContent>
-          </Card>
+                <dl className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <DataPoint label="Transações" value={String(state.transactions.length)} />
+                  <DataPoint label="Categorias" value={String(state.categories.length)} />
+                  <DataPoint
+                    label="Orçamentos ativos"
+                    value={String(Object.keys(state.budgets).length)}
+                  />
+                </dl>
+              </CardContent>
+            </Card>
+
+            <Card className="gap-0">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+                  Projetos
+                </CardTitle>
+                <CardDescription>
+                  Metas como viagem ou mudança. Vincule transações no formulário e filtre pela
+                  lista delas.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4 pt-5">
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <Label htmlFor="project-name">Novo projeto</Label>
+                    <Input
+                      id="project-name"
+                      value={projectName}
+                      onChange={(event) => setProjectName(event.target.value)}
+                      placeholder="Ex.: Reforma da cozinha"
+                      className="h-9"
+                      maxLength={60}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          addProject()
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button onClick={addProject} disabled={!projectName.trim()}>
+                    <Plus />
+                    Adicionar
+                  </Button>
+                </div>
+
+                {state.projects.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhum projeto criado ainda.</p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-md border border-border">
+                    {state.projects.map((project) => {
+                      const linked = state.transactions.filter(
+                        (tx) => tx.projectId === project.id,
+                      ).length
+                      if (editingProject?.id === project.id) {
+                        return (
+                          <li key={project.id} className="flex items-center gap-2 px-3 py-2">
+                            <Input
+                              value={editName}
+                              onChange={(event) => setEditName(event.target.value)}
+                              className="h-8 flex-1"
+                              maxLength={60}
+                              autoFocus
+                              aria-label="Renomear projeto"
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault()
+                                  saveProjectName()
+                                }
+                                if (event.key === 'Escape') setEditingProject(null)
+                              }}
+                            />
+                            <Button size="sm" onClick={saveProjectName} disabled={!editName.trim()}>
+                              Salvar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingProject(null)}
+                            >
+                              Cancelar
+                            </Button>
+                          </li>
+                        )
+                      }
+                      return (
+                        <li key={project.id} className="flex items-center gap-3 px-3 py-2.5">
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">
+                              {project.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {linked === 0
+                                ? 'Sem transações'
+                                : linked === 1
+                                  ? '1 transação vinculada'
+                                  : `${linked} transações vinculadas`}
+                            </span>
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Renomear projeto ${project.name}`}
+                            onClick={() => {
+                              setEditingProject(project)
+                              setEditName(project.name)
+                            }}
+                          >
+                            <Pencil />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Excluir projeto ${project.name}`}
+                            className="text-destructive"
+                            onClick={() => setProjectToDelete(project)}
+                          >
+                            <Trash2 />
+                          </Button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="integracao">
@@ -468,6 +641,30 @@ export function SettingsPage() {
               }}
             >
               Redefinir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={projectToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setProjectToDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir projeto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {projectToDelete
+                ? `“${projectToDelete.name}” será removido. As transações vinculadas continuam salvas, apenas sem o projeto.`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={removeProject}>
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

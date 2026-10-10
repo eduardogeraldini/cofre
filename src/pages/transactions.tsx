@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { FileUp, Plus, Receipt, Search } from 'lucide-react'
+import { FileUp, Plus, Receipt, Search, SlidersHorizontal, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { EmptyState } from '@/components/empty-state'
 import { FilterChip } from '@/components/filter-chip'
 import { Money } from '@/components/money'
@@ -36,6 +38,7 @@ export function TransactionsPage() {
   const [type, setType] = useState<TxFilter>('all')
   const [category, setCategory] = useState(ALL)
   const [walletFilter, setWalletFilter] = useState(ALL)
+  const [projectFilter, setProjectFilter] = useState(ALL)
   const [month, setMonth] = useState(ALL)
 
   useEffect(() => {
@@ -60,6 +63,9 @@ export function TransactionsPage() {
       if (walletFilter === 'none' && tx.walletId) return false
       if (walletFilter !== ALL && walletFilter !== 'none' && tx.walletId !== walletFilter)
         return false
+      if (projectFilter === 'none' && tx.projectId) return false
+      if (projectFilter !== ALL && projectFilter !== 'none' && tx.projectId !== projectFilter)
+        return false
       if (month !== ALL && monthKey(tx.date) !== month) return false
       if (query) {
         const note = tx.note.toLowerCase()
@@ -67,16 +73,30 @@ export function TransactionsPage() {
           state.categories.find((item) => item.id === tx.categoryId)?.name.toLowerCase() ?? ''
         const walletName =
           state.wallets.find((item) => item.id === tx.walletId)?.name.toLowerCase() ?? ''
+        const projectName =
+          state.projects.find((item) => item.id === tx.projectId)?.name.toLowerCase() ?? ''
         if (
           !note.includes(query) &&
           !categoryName.includes(query) &&
-          !walletName.includes(query)
+          !walletName.includes(query) &&
+          !projectName.includes(query)
         )
           return false
       }
       return true
     })
-  }, [state.transactions, state.categories, state.wallets, search, type, category, walletFilter, month])
+  }, [
+    state.transactions,
+    state.categories,
+    state.wallets,
+    state.projects,
+    search,
+    type,
+    category,
+    walletFilter,
+    projectFilter,
+    month,
+  ])
 
   const totals = useMemo(
     () => ({
@@ -86,14 +106,43 @@ export function TransactionsPage() {
     [filtered],
   )
 
-  const hasFilters =
-    search.trim() !== '' ||
-    type !== 'all' ||
-    category !== ALL ||
-    walletFilter !== ALL ||
-    month !== ALL
+  const activeChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onRemove: () => void }> = []
+    if (category !== ALL) {
+      const name = state.categories.find((item) => item.id === category)?.name
+      if (name) {
+        chips.push({ key: 'category', label: `Categoria: ${name}`, onRemove: () => setCategory(ALL) })
+      }
+    }
+    if (walletFilter !== ALL) {
+      const name =
+        walletFilter === 'none'
+          ? 'Sem carteira'
+          : state.wallets.find((item) => item.id === walletFilter)?.name
+      if (name) {
+        chips.push({ key: 'wallet', label: `Carteira: ${name}`, onRemove: () => setWalletFilter(ALL) })
+      }
+    }
+    if (projectFilter !== ALL) {
+      const name =
+        projectFilter === 'none'
+          ? 'Sem projeto'
+          : state.projects.find((item) => item.id === projectFilter)?.name
+      if (name) {
+        chips.push({
+          key: 'project',
+          label: `Projeto: ${name}`,
+          onRemove: () => setProjectFilter(ALL),
+        })
+      }
+    }
+    if (month !== ALL) {
+      chips.push({ key: 'month', label: `Mês: ${monthLabel(month)}`, onRemove: () => setMonth(ALL) })
+    }
+    return chips
+  }, [category, walletFilter, projectFilter, month, state.categories, state.wallets, state.projects])
 
-  const filterKey = `${search.trim()}|${type}|${category}|${walletFilter}|${month}`
+  const filterKey = `${search.trim()}|${type}|${category}|${walletFilter}|${projectFilter}|${month}`
   const [page, setPage] = useState({ key: filterKey, count: PAGE_SIZE })
   const visible = page.key === filterKey ? page.count : PAGE_SIZE
 
@@ -116,6 +165,7 @@ export function TransactionsPage() {
     setType('all')
     setCategory(ALL)
     setWalletFilter(ALL)
+    setProjectFilter(ALL)
     setMonth(ALL)
   }
 
@@ -139,86 +189,162 @@ export function TransactionsPage() {
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por descrição…"
-            className="pl-9"
-            aria-label="Buscar transações"
-          />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por descrição…"
+              className="pl-9"
+              aria-label="Buscar transações"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              [
+                { value: 'all', label: 'Todas' },
+                { value: 'expense', label: 'Despesas' },
+                { value: 'income', label: 'Receitas' },
+              ] as const
+            ).map((option) => (
+              <FilterChip
+                key={option.value}
+                active={type === option.value}
+                onClick={() => setType(option.value)}
+              >
+                {option.label}
+              </FilterChip>
+            ))}
+          </div>
+
+          <div className="flex flex-1 items-center gap-2 sm:justify-end">
+            <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                <SlidersHorizontal />
+                Filtros
+                {activeChips.length > 0 ? (
+                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                    {activeChips.length}
+                  </span>
+                ) : null}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-overline">Categoria</span>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger className="w-full" aria-label="Filtrar por categoria">
+                      <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL}>Todas as categorias</SelectItem>
+                      {state.categories.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-overline">Carteira</span>
+                  <Select value={walletFilter} onValueChange={setWalletFilter}>
+                    <SelectTrigger className="w-full" aria-label="Filtrar por carteira">
+                      <SelectValue placeholder="Carteira" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL}>Todas as carteiras</SelectItem>
+                      <SelectItem value="none">Sem carteira</SelectItem>
+                      {state.wallets.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {state.projects.length > 0 ? (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-overline">Projeto</span>
+                    <Select value={projectFilter} onValueChange={setProjectFilter}>
+                      <SelectTrigger className="w-full" aria-label="Filtrar por projeto">
+                        <SelectValue placeholder="Projeto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ALL}>Todos os projetos</SelectItem>
+                        <SelectItem value="none">Sem projeto</SelectItem>
+                        {state.projects.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-overline">Mês</span>
+                  <Select value={month} onValueChange={setMonth}>
+                    <SelectTrigger className="w-full" aria-label="Filtrar por mês">
+                      <SelectValue placeholder="Mês" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL}>Todos os meses</SelectItem>
+                      {months.map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {monthLabel(key)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {activeChips.length > 0 ? (
+                  <>
+                    <Separator />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      aria-label="Limpar todos os filtros"
+                      onClick={clearFilters}
+                    >
+                      Limpar filtros
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Nenhum filtro aplicado.</p>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {(
-            [
-              { value: 'all', label: 'Todas' },
-              { value: 'expense', label: 'Despesas' },
-              { value: 'income', label: 'Receitas' },
-            ] as const
-          ).map((option) => (
-            <FilterChip
-              key={option.value}
-              active={type === option.value}
-              onClick={() => setType(option.value)}
-            >
-              {option.label}
-            </FilterChip>
-          ))}
-        </div>
-
-        <div className="flex flex-1 flex-wrap items-center gap-2 sm:justify-end">
-          <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="w-full sm:w-48" aria-label="Filtrar por categoria">
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todas as categorias</SelectItem>
-              {state.categories.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={walletFilter} onValueChange={setWalletFilter}>
-            <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar por carteira">
-              <SelectValue placeholder="Carteira" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todas as carteiras</SelectItem>
-              <SelectItem value="none">Sem carteira</SelectItem>
-              {state.wallets.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar por mês">
-              <SelectValue placeholder="Mês" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos os meses</SelectItem>
-              {months.map((key) => (
-                <SelectItem key={key} value={key}>
-                  {monthLabel(key)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {hasFilters ? (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Limpar filtros
-            </Button>
-          ) : null}
-        </div>
+        {activeChips.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {activeChips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={chip.onRemove}
+                className="inline-flex h-8 items-center gap-1 rounded-full border border-border bg-muted/40 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                aria-label={`Remover filtro ${chip.label}`}
+              >
+                {chip.label}
+                <X className="size-3 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <Card className="gap-0">

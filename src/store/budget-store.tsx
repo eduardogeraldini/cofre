@@ -10,7 +10,15 @@ import {
   type ReactNode,
 } from 'react'
 import { toast } from 'sonner'
-import type { AppState, Category, Settings, Transaction, Transfer, Wallet } from '@/types'
+import type {
+  AppState,
+  Category,
+  Project,
+  Settings,
+  Transaction,
+  Transfer,
+  Wallet,
+} from '@/types'
 import { createOnboardingState } from '@/lib/seed'
 import { readStateSnapshot, writeStateSnapshot } from '@/lib/offline-state'
 import { loadRemoteState, pushFullState, syncDiff } from '@/lib/remote'
@@ -24,6 +32,9 @@ type Action =
   | { type: 'wallet/add'; wallet: Wallet }
   | { type: 'wallet/update'; wallet: Wallet }
   | { type: 'wallet/delete'; id: string }
+  | { type: 'project/add'; project: Project }
+  | { type: 'project/update'; project: Project }
+  | { type: 'project/delete'; id: string }
   | { type: 'transfer/add'; transfer: Transfer }
   | { type: 'transfer/delete'; id: string }
   | { type: 'budget/set'; categoryId: string; limit: number }
@@ -77,6 +88,23 @@ function reducer(state: AppState, action: Action): AppState {
         ),
         transactions: state.transactions.map((tx) =>
           tx.walletId === action.id ? { ...tx, walletId: null } : tx,
+        ),
+      }
+    case 'project/add':
+      return { ...state, projects: [...state.projects, action.project] }
+    case 'project/update':
+      return {
+        ...state,
+        projects: state.projects.map((project) =>
+          project.id === action.project.id ? action.project : project,
+        ),
+      }
+    case 'project/delete':
+      return {
+        ...state,
+        projects: state.projects.filter((project) => project.id !== action.id),
+        transactions: state.transactions.map((tx) =>
+          tx.projectId === action.id ? { ...tx, projectId: null } : tx,
         ),
       }
     case 'transfer/add':
