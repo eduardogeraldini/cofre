@@ -47,6 +47,7 @@ import { useBudget } from '@/store/budget-context'
 import type { AppState, Wallet } from '@/types'
 
 const CURRENT_MONTH = monthKeyOf(new Date())
+const TRANSFERS_PAGE = 5
 
 function lastMovement(state: AppState, walletId: string): string | null {
   let latest: string | null = null
@@ -223,9 +224,11 @@ export function WalletsPage() {
   const [transferConfirm, setTransferConfirm] = useState<string | null>(null)
 
   const wealth = totalWealth(state)
-  const recentTransfers = [...state.transfers]
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-    .slice(0, 5)
+  const sortedTransfers = [...state.transfers].sort((a, b) =>
+    a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
+  )
+  const [visibleTransfers, setVisibleTransfers] = useState(TRANSFERS_PAGE)
+  const recentTransfers = sortedTransfers.slice(0, visibleTransfers)
 
   const openNew = () => {
     setEditing(null)
@@ -330,7 +333,7 @@ export function WalletsPage() {
         </div>
       )}
 
-      {recentTransfers.length > 0 ? (
+      {sortedTransfers.length > 0 ? (
         <Card className="gap-0">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
@@ -385,6 +388,18 @@ export function WalletsPage() {
                 )
               })}
             </ul>
+
+            {sortedTransfers.length > recentTransfers.length ? (
+              <div className="border-t border-border px-4 py-3 text-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleTransfers((count) => count + TRANSFERS_PAGE)}
+                >
+                  Ver mais
+                </Button>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
