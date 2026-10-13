@@ -11,8 +11,8 @@ function makeState(): AppState {
       { id: 'cat-salary', name: 'Salário', type: 'income', icon: 'briefcase' },
     ],
     wallets: [
-      { id: 'w1', name: 'Caixa', color: 'indigo', initialBalance: 100 },
-      { id: 'w2', name: 'Banco', color: 'emerald', initialBalance: 500 },
+      { id: 'w1', name: 'Caixa', color: 'indigo', kind: 'account', closingDay: null, dueDay: null, initialBalance: 100 },
+      { id: 'w2', name: 'Banco', color: 'emerald', kind: 'account', closingDay: null, dueDay: null, initialBalance: 500 },
     ],
     projects: [{ id: 'p1', name: 'Casamento' }],
     transfers: [
@@ -102,7 +102,7 @@ describe('reducer: carteiras', () => {
   it('wallet/update aplica os novos dados', () => {
     const state = reducer(makeState(), {
       type: 'wallet/update',
-      wallet: { id: 'w1', name: 'Caixa novo', color: 'rose', initialBalance: 999 },
+      wallet: { id: 'w1', name: 'Caixa novo', color: 'rose', kind: 'account', closingDay: null, dueDay: null, initialBalance: 999 },
     })
     expect(state.wallets.find((item) => item.id === 'w1')?.name).toBe('Caixa novo')
   })

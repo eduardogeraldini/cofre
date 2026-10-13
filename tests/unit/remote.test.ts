@@ -51,7 +51,7 @@ function makeState(): AppState {
   return {
     version: 1,
     categories: [{ id: 'c1', name: 'Lazer', type: 'expense', icon: 'ticket' }],
-    wallets: [{ id: 'w1', name: 'Caixa', color: 'indigo', initialBalance: 10 }],
+    wallets: [{ id: 'w1', name: 'Caixa', color: 'indigo', kind: 'account', closingDay: null, dueDay: null, initialBalance: 10 }],
     projects: [{ id: 'p1', name: 'Casamento' }],
     transfers: [
       { id: 't1', fromWalletId: 'w1', toWalletId: 'w2', amount: 5, date: '2026-10-01', note: '' },
@@ -125,6 +125,9 @@ describe('pushFullState', () => {
       id: 'w1',
       name: 'Caixa',
       color: 'indigo',
+      kind: 'account',
+      closing_day: null,
+      due_day: null,
       initial_balance: 10,
     })
 
@@ -148,7 +151,7 @@ describe('pushFullState', () => {
 describe('syncDiff', () => {
   it('remove carteiras e transferências que saíram do estado local', async () => {
     const prev = makeState()
-    prev.wallets.push({ id: 'w2', name: 'Banco', color: 'emerald', initialBalance: 0 })
+    prev.wallets.push({ id: 'w2', name: 'Banco', color: 'emerald', kind: 'account', closingDay: null, dueDay: null, initialBalance: 0 })
     const next = makeState()
     next.transfers = []
 

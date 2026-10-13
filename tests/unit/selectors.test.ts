@@ -5,8 +5,15 @@ import {
   budgetUsage,
   categorySummaries,
   changeAgainstPrevious,
+  daysUntil,
   expensesByWallet,
   expenseBreakdown,
+  invoiceCutoff,
+  invoicePurchases,
+  invoicePayments,
+  lastClosingDate,
+  nextDueDate,
+  openInvoice,
   savingsRate,
   searchTransactions,
   sumByType,
@@ -41,8 +48,8 @@ function makeState(): AppState {
       { id: 'cat-salary', name: 'Salário', type: 'income', icon: 'briefcase' },
     ],
     wallets: [
-      { id: 'w1', name: 'Caixa', color: 'indigo', initialBalance: 1000 },
-      { id: 'w2', name: 'Banco', color: 'emerald', initialBalance: 0 },
+      { id: 'w1', name: 'Caixa', color: 'indigo', kind: 'account', closingDay: null, dueDay: null, initialBalance: 1000 },
+      { id: 'w2', name: 'Banco', color: 'emerald', kind: 'account', closingDay: null, dueDay: null, initialBalance: 0 },
     ],
     projects: [],
     transfers: [
@@ -89,6 +96,80 @@ describe('walletBalance', () => {
 
   it('retorna 0 para carteira inexistente', () => {
     expect(walletBalance(makeState(), 'nope')).toBe(0)
+  })
+})
+
+describe('openInvoice', () => {
+  const makeCardState = (): AppState => ({
+    version: 1,
+    categories: [{ id: 'c1', name: 'Lazer', type: 'expense', icon: 'ticket' }],
+    wallets: [
+      { id: 'acc', name: 'Conta', color: 'indigo', kind: 'account', closingDay: null, dueDay: null, initialBalance: 0 },
+      { id: 'card', name: 'Cartão', color: 'rose', kind: 'card', closingDay: null, dueDay: null, initialBalance: 0 },
+      { id: 'paid', name: 'Cartão quitado', color: 'rose', kind: 'card', closingDay: null, dueDay: null, initialBalance: 0 },
+    ],
+    projects: [],
+    transfers: [],
+    transactions: [
+      {
+        id: 't1',
+        date: '2026-10-05',
+        type: 'expense',
+        amount: 120.5,
+        categoryId: 'c1',
+        note: '',
+        walletId: 'card',
+      },
+      {
+        id: 't2',
+        date: '2026-10-06',
+        type: 'expense',
+        amount: 30,
+        categoryId: 'c1',
+        note: '',
+        walletId: 'acc',
+      },
+    ],
+    budgets: {},
+    settings: { privacyMode: false, compactValues: true },
+  })
+
+  it('cartão com saldo negativo vira fatura positiva', () => {
+    expect(openInvoice(makeCardState(), 'card')).toBe(120.5)
+  })
+
+  it('conta com saldo negativo não tem fatura', () => {
+    const state = makeCardState()
+    state.wallets[0].initialBalance = 0
+    state.transactions.push({
+      id: 't3',
+      date: '2026-10-07',
+      type: 'expense',
+      amount: 50,
+      categoryId: 'c1',
+      note: '',
+      walletId: 'acc',
+    })
+    expect(walletBalance(state, 'acc')).toBe(-80)
+    expect(openInvoice(state, 'acc')).toBe(0)
+  })
+
+  it('cartão sem saldo negativo está quitado', () => {
+    expect(openInvoice(makeCardState(), 'paid')).toBe(0)
+  })
+
+  it('pagamento por transferência zera a fatura', () => {
+    const state = makeCardState()
+    state.transfers.push({
+      id: 'tf',
+      fromWalletId: 'acc',
+      toWalletId: 'card',
+      amount: 120.5,
+      date: '2026-11-10',
+      note: '',
+    })
+    expect(openInvoice(state, 'card')).toBe(0)
+    expect(walletBalance(state, 'card')).toBe(0)
   })
 })
 
@@ -181,5 +262,80 @@ describe('expensesByWallet', () => {
       { wallet: expect.objectContaining({ id: 'w1' }), total: 100 },
       { wallet: null, total: 40 },
     ])
+  })
+})
+
+describe('lastClosingDate / nextDueDate / daysUntil', () => {
+  const from = new Date(2026, 9, 13) // 13 de outubro de 2026
+
+  it('último fechamento: dia já passou usa o mês atual', () => {
+    expect(lastClosingDate(5, from)).toBe('2026-10-05')
+  })
+
+  it('último fechamento: dia ainda não passou usa o mês anterior', () => {
+    expect(lastClosingDate(20, from)).toBe('2026-09-20')
+  })
+
+  it('próximo vencimento: dia ainda não passou é este mês', () => {
+    expect(nextDueDate(20, from)).toBe('2026-10-20')
+  })
+
+  it('próximo vencimento: dia já passou é o próximo mês', () => {
+    expect(nextDueDate(5, from)).toBe('2026-11-05')
+  })
+
+  it('daysUntil conta dias corridos', () => {
+    expect(daysUntil('2026-10-20', from)).toBe(7)
+    expect(daysUntil('2026-10-13', from)).toBe(0)
+    expect(daysUntil('2026-10-12', from)).toBe(-1)
+  })
+})
+
+describe('invoiceCutoff / invoicePurchases / invoicePayments', () => {
+  const makeInvoiceState = (): AppState => ({
+    version: 1,
+    categories: [{ id: 'c1', name: 'Compras', type: 'expense', icon: 'package' }],
+    wallets: [
+      { id: 'acc', name: 'Conta', color: 'indigo', kind: 'account', closingDay: null, dueDay: null, initialBalance: 0 },
+      { id: 'card', name: 'Cartão', color: 'rose', kind: 'card', closingDay: 5, dueDay: 10, initialBalance: 0 },
+      { id: 'open', name: 'Sem fechamento', color: 'rose', kind: 'card', closingDay: null, dueDay: null, initialBalance: 0 },
+    ],
+    projects: [],
+    transfers: [
+      { id: 'tf1', fromWalletId: 'acc', toWalletId: 'open', amount: 50, date: '2026-10-01', note: '' },
+      { id: 'tf2', fromWalletId: 'acc', toWalletId: 'card', amount: 200, date: '2026-10-08', note: '' },
+    ],
+    transactions: [
+      { id: 'old', date: '2026-09-20', type: 'expense', amount: 200, categoryId: 'c1', note: '', walletId: 'card' },
+      { id: 'new', date: '2026-10-08', type: 'expense', amount: 80, categoryId: 'c1', note: '', walletId: 'card' },
+      { id: 'open1', date: '2026-10-05', type: 'expense', amount: 30, categoryId: 'c1', note: '', walletId: 'open' },
+    ],
+    budgets: {},
+    settings: { privacyMode: false, compactValues: true },
+  })
+
+  it('com fechamento definido, corte é o último fechamento', () => {
+    const state = makeInvoiceState()
+    expect(invoiceCutoff(state, 'card')).toBe(lastClosingDate(5))
+  })
+
+  it('sem fechamento, corte é o último pagamento recebido', () => {
+    const state = makeInvoiceState()
+    expect(invoiceCutoff(state, 'open')).toBe('2026-10-01')
+  })
+
+  it('extrato lista apenas despesas após o corte, da mais recente', () => {
+    const state = makeInvoiceState()
+    expect(invoicePurchases(state, 'card').map((item) => item.id)).toEqual(['new'])
+  })
+
+  it('pagamentos após o corte por fechamento contam no total', () => {
+    const state = makeInvoiceState()
+    expect(invoicePayments(state, 'card')).toBe(200)
+  })
+
+  it('sem fechamento, o último pagamento é só o corte (não conta)', () => {
+    const state = makeInvoiceState()
+    expect(invoicePayments(state, 'open')).toBe(0)
   })
 })

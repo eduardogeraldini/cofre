@@ -68,6 +68,28 @@ const palette = [
   { name: 'Text', value: '#0A0A0A' },
 ]
 
+const copyBlock = async (text: string) => {
+  await navigator.clipboard.writeText(text)
+  toast.success('Copiado')
+}
+
+function CopyBlock({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-overline">{label}</span>
+      <div className="flex items-start gap-2 rounded-md border border-border bg-muted/50 p-2">
+        <code className="min-w-0 flex-1 whitespace-pre-wrap break-all font-mono text-xs leading-relaxed">
+          {text}
+        </code>
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => void copyBlock(text)}>
+          <Copy />
+          Copiar
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function SettingsPage() {
   const { state, dispatch, reset } = useBudget()
   const { session } = useAuth()
@@ -241,7 +263,12 @@ export function SettingsPage() {
       const imported: AppState = {
         version: parsed.version ?? 1,
         categories: parsed.categories,
-        wallets: parsed.wallets ?? [],
+        wallets: (parsed.wallets ?? []).map((wallet) => ({
+          ...wallet,
+          kind: wallet.kind === 'card' ? 'card' : 'account',
+          closingDay: wallet.closingDay ?? null,
+          dueDay: wallet.dueDay ?? null,
+        })),
         projects: parsed.projects ?? [],
         transfers: parsed.transfers ?? [],
         transactions: parsed.transactions,
@@ -257,6 +284,24 @@ export function SettingsPage() {
       toast.error('Não foi possível importar', { description: 'Arquivo inválido ou corrompido.' })
     }
   }
+
+  const efBaseUrl = import.meta.env.VITE_SUPABASE_URL ?? 'https://SEU-PROJETO.supabase.co'
+  const efKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? 'sua-chave-anon'
+  const efUrl = `${efBaseUrl}/functions/v1/registrar-gasto`
+  const snippetToken = createdToken ?? 'SEU_TOKEN_AQUI'
+  const analysisBody = JSON.stringify({ token: snippetToken, texto: '12,50 almoço' }, null, 2)
+  const confirmBody = JSON.stringify(
+    {
+      token: snippetToken,
+      confirmar: true,
+      amount: 0,
+      category_id: '',
+      note: '',
+      date: 'AAAA-MM-DD',
+    },
+    null,
+    2,
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -533,81 +578,256 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="integracao">
-          <Card className="gap-0">
-            <CardHeader className="border-b border-border pb-4">
-              <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-                Acesso rápido (iPhone)
-              </CardTitle>
-              <CardDescription>
-                Gere tokens para o Atalho do iPhone registrar gastos direto na sua conta, sem senha.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-5">
-              {createdToken ? (
-                <div className="rounded-md border border-border bg-muted/50 p-3">
-                  <p className="text-xs text-muted-foreground">
-                    Novo token (exibido apenas uma vez — guarde-o agora):
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <code className="min-w-0 flex-1 truncate font-mono text-sm">{createdToken}</code>
-                    <Button variant="outline" size="sm" onClick={() => void copyToken()}>
-                      <Copy />
-                      Copiar
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap items-end gap-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="token-label">Nome</Label>
-                  <Input
-                    id="token-label"
-                    value={tokenLabel}
-                    onChange={(event) => setTokenLabel(event.target.value)}
-                    placeholder="iPhone"
-                    className="h-9 w-44"
-                  />
-                </div>
-                <Button onClick={() => void generateToken()} disabled={tokenBusy}>
-                  <KeyRound />
-                  Gerar token
-                </Button>
-              </div>
-
-              {tokens.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhum token gerado ainda.</p>
-              ) : (
-                <ul className="divide-y divide-border rounded-md border border-border">
-                  {tokens.map((token) => (
-                    <li key={token.id} className="flex items-center gap-3 px-3 py-2.5">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{token.label}</span>
-                        <span className="text-xs text-muted-foreground">
-                          Criado {formatTokenDate(token.created_at)} ·{' '}
-                          {token.last_used_at
-                            ? `último uso ${formatTokenDate(token.last_used_at)}`
-                            : 'nunca usado'}
-                        </span>
-                      </span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => void deleteToken(token.id)}
-                      >
-                        <Trash2 />
-                        Apagar
+          <div className="flex flex-col gap-6">
+            <Card className="gap-0">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+                  Acesso rápido (iPhone)
+                </CardTitle>
+                <CardDescription>
+                  Gere tokens para o Atalho do iPhone registrar gastos direto na sua conta, sem senha.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4 pt-5">
+                {createdToken ? (
+                  <div className="rounded-md border border-border bg-muted/50 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Novo token (exibido apenas uma vez — guarde-o agora):
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <code className="min-w-0 flex-1 truncate font-mono text-sm">{createdToken}</code>
+                      <Button variant="outline" size="sm" onClick={() => void copyToken()}>
+                        <Copy />
+                        Copiar
                       </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                    </div>
+                  </div>
+                ) : null}
 
-              <p className="text-xs text-muted-foreground">
-                O token aparece só no momento da criação — apenas o hash dele fica salvo no banco.
-              </p>
-            </CardContent>
-          </Card>
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="token-label">Nome</Label>
+                    <Input
+                      id="token-label"
+                      value={tokenLabel}
+                      onChange={(event) => setTokenLabel(event.target.value)}
+                      placeholder="iPhone"
+                      className="h-9 w-44"
+                    />
+                  </div>
+                  <Button onClick={() => void generateToken()} disabled={tokenBusy}>
+                    <KeyRound />
+                    Gerar token
+                  </Button>
+                </div>
+
+                {tokens.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhum token gerado ainda.</p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-md border border-border">
+                    {tokens.map((token) => (
+                      <li key={token.id} className="flex items-center gap-3 px-3 py-2.5">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{token.label}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Criado {formatTokenDate(token.created_at)} ·{' '}
+                            {token.last_used_at
+                              ? `último uso ${formatTokenDate(token.last_used_at)}`
+                              : 'nunca usado'}
+                          </span>
+                        </span>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => void deleteToken(token.id)}
+                        >
+                          <Trash2 />
+                          Apagar
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  O token aparece só no momento da criação — apenas o hash dele fica salvo no banco.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="gap-0">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
+                  Criar atalho no iPhone (iOS 27)
+                </CardTitle>
+                <CardDescription>
+                  Passo a passo para registrar gastos pelo Atalho, sem abrir o app.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-5 text-sm">
+                <ol className="flex list-decimal flex-col gap-4 pl-5 marker:font-semibold">
+                  <li><div className="flex flex-col gap-2">
+                    <span>
+                      <strong className="font-semibold">Gere um token</strong> no card acima e copie —
+                      ele aparece só uma vez. Se os blocos abaixo mostrarem{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        SEU_TOKEN_AQUI
+                      </code>
+                      , cole o token no lugar.
+                    </span>
+                  </div>
+                  </li>
+                  <li><div className="flex flex-col gap-2">
+                    <span>
+                      No iPhone, abra o app <strong className="font-semibold">Atalhos</strong> e toque
+                      em <strong className="font-semibold">+</strong> para criar um atalho novo.
+                    </span>
+                  </div>
+                  </li>
+                  <li><div className="flex flex-col gap-2">
+                    <span>
+                      Toque em <strong className="font-semibold">Adicionar ação</strong> e busque{' '}
+                      <strong className="font-semibold">“Pedir entrada de texto”</strong>: pergunte{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        Quanto e onde?
+                      </code>{' '}
+                      com texto inicial{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        12,50 almoço
+                      </code>
+                      .
+                    </span>
+                  </div>
+                  </li>
+                  <li><div className="flex flex-col gap-2">
+                    <span>
+                      Adicione a ação{' '}
+                      <strong className="font-semibold">“Fazer chamada HTTP”</strong> (busque por{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">HTTP</code>
+                      ) e configure:
+                    </span>
+                    <span className="text-muted-foreground">
+                      Método:{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">POST</code>
+                    </span>
+                    <CopyBlock label="URL" text={efUrl} />
+                    <CopyBlock
+                      label="Cabeçalhos"
+                      text={`Content-Type: application/json\napikey: ${efKey}\nAuthorization: Bearer ${efKey}`}
+                    />
+                    <CopyBlock label="Corpo (JSON)" text={analysisBody} />
+                    <span>
+                      Por fim, toque <strong className="font-semibold">no meio do texto</strong>{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        12,50 almoço
+                      </code>{' '}
+                      (dentro das aspas) e insira a variável da ação de texto. Mantenha as aspas.
+                    </span>
+                  </div>
+                  </li>
+                  <li><div className="flex flex-col gap-2">
+                    <span>
+                      Toque no <strong className="font-semibold">play</strong> para testar: a resposta
+                      traz valor, categoria, descrição e data — nada é gravado ainda. Se vier uma
+                      mensagem de erro, leia-a e corrija antes de seguir.
+                    </span>
+                  </div>
+                  </li>
+                  <li><div className="flex flex-col gap-2">
+                    <span>
+                      Adicione a ação{' '}
+                      <strong className="font-semibold">“Obter valor do dicionário”</strong> (busque
+                      por{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        dicionário
+                      </code>
+                      ) <strong className="font-semibold">4 vezes</strong> — uma para cada chave da
+                      resposta da chamada HTTP:{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">amount</code>
+                      ,{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        category_id
+                      </code>
+                      ,{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        description
+                      </code>{' '}
+                      e{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">date</code>.
+                    </span>
+                  </div>
+                  </li>
+                  <li><div className="flex flex-col gap-2">
+                    <span>
+                      Adicione{' '}
+                      <strong className="font-semibold">“Perguntar para confirmar”</strong> (busque
+                      por{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        confirmar
+                      </code>
+                      ) com a mensagem{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        Registrar este gasto?
+                      </code>
+                      .
+                    </span>
+                  </div>
+                  </li>
+                  <li><div className="flex flex-col gap-2">
+                    <span>
+                      Adicione a ação{' '}
+                      <strong className="font-semibold">“Se”</strong> (busque por{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">Se</code>)
+                      com condição = resposta da confirmação{' '}
+                      <strong className="font-semibold">Confirmado</strong>. Dentro do Se, adicione:
+                    </span>
+                    <span className="text-muted-foreground">
+                      1. Uma segunda{' '}
+                      <strong className="font-semibold">“Fazer chamada HTTP”</strong>: mesmo método,
+                      URL e cabeçalhos; corpo:
+                    </span>
+                    <CopyBlock label="Corpo (JSON)" text={confirmBody} />
+                    <span className="text-muted-foreground">
+                      Substitua{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">0</code>,{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">""</code> e{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        "AAAA-MM-DD"
+                      </code>{' '}
+                      pelas variáveis “Obter valor do dicionário”:{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">amount</code>{' '}
+                      (sem aspas),{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        category_id
+                      </code>
+                      ,{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        description
+                      </code>{' '}
+                      e{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">date</code>{' '}
+                      (dentro das aspas).
+                    </span>
+                    <span className="text-muted-foreground">
+                      2. <strong className="font-semibold">“Mostrar alerta”</strong> com o texto{' '}
+                      <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-xs">
+                        Gasto registrado!
+                      </code>
+                      .
+                    </span>
+                  </div>
+                  </li>
+                  <li><div className="flex flex-col gap-2">
+                    <span>
+                      <strong className="font-semibold">Pronto!</strong> Execute o atalho, digite (ou
+                      diga) o gasto e confirme — ele aparece no app em instantes.
+                    </span>
+                  </div>
+                  </li>
+                </ol>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

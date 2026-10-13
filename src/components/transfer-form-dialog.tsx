@@ -22,34 +22,55 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toISODate } from '@/lib/format'
-import { parseAmount } from '@/lib/money'
+import { parseAmount, toAmountInput } from '@/lib/money'
 import { useBudget } from '@/store/budget-context'
 import type { Transfer } from '@/types'
 
 const TODAY = toISODate(new Date())
 
+export interface TransferPreset {
+  kind?: 'payment'
+  fromWalletId?: string
+  toWalletId?: string
+  amount?: number
+  note?: string
+  title?: string
+  submitLabel?: string
+}
+
 interface TransferFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  preset?: TransferPreset | null
 }
 
-export function TransferFormDialog({ open, onOpenChange }: TransferFormDialogProps) {
+export function TransferFormDialog({ open, onOpenChange, preset }: TransferFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open ? <TransferFormContent onOpenChange={onOpenChange} /> : null}
+      {open ? <TransferFormContent onOpenChange={onOpenChange} preset={preset ?? null} /> : null}
     </Dialog>
   )
 }
 
-function TransferFormContent({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+function TransferFormContent({
+  onOpenChange,
+  preset,
+}: {
+  onOpenChange: (open: boolean) => void
+  preset: TransferPreset | null
+}) {
   const { state, dispatch } = useBudget()
   const wallets = state.wallets
 
-  const [from, setFrom] = useState(wallets[0]?.id ?? '')
-  const [to, setTo] = useState(wallets[1]?.id ?? wallets[0]?.id ?? '')
-  const [amount, setAmount] = useState('')
+  const defaultFrom =
+    preset?.fromWalletId ?? wallets.find((wallet) => wallet.kind === 'account')?.id ?? wallets[0]?.id ?? ''
+  const defaultTo = preset?.toWalletId ?? wallets[1]?.id ?? wallets[0]?.id ?? ''
+
+  const [from, setFrom] = useState(defaultFrom)
+  const [to, setTo] = useState(defaultTo)
+  const [amount, setAmount] = useState(preset?.amount != null ? toAmountInput(preset.amount) : '')
   const [date, setDate] = useState(TODAY)
-  const [note, setNote] = useState('')
+  const [note, setNote] = useState(preset?.note ?? '')
   const [error, setError] = useState('')
 
   const save = () => {
@@ -77,11 +98,14 @@ function TransferFormContent({ onOpenChange }: { onOpenChange: (open: boolean) =
     }
 
     dispatch({ type: 'transfer/add', transfer: payload })
-    toast.success('Transferência registrada', {
-      description: `${state.wallets.find((w) => w.id === from)?.name ?? '?'} → ${
-        state.wallets.find((w) => w.id === to)?.name ?? '?'
-      }`,
-    })
+    const toName = state.wallets.find((wallet) => wallet.id === to)?.name ?? '?'
+    if (preset?.kind === 'payment') {
+      toast.success('Pagamento registrado', { description: `Fatura ${toName}` })
+    } else {
+      toast.success('Transferência registrada', {
+        description: `${state.wallets.find((wallet) => wallet.id === from)?.name ?? '?'} → ${toName}`,
+      })
+    }
     onOpenChange(false)
   }
 
@@ -104,10 +128,12 @@ function TransferFormContent({ onOpenChange }: { onOpenChange: (open: boolean) =
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle className="font-display text-[19px] tracking-[-0.03em]">
-          Transferir entre carteiras
+          {preset?.title ?? 'Transferir entre carteiras'}
         </DialogTitle>
         <DialogDescription>
-          Move valores de uma conta para outra sem afetar receitas, despesas ou orçamentos.
+          {preset?.title
+            ? 'Registre o pagamento para quitar a fatura em aberto.'
+            : 'Move valores de uma conta para outra sem afetar receitas, despesas ou orçamentos.'}
         </DialogDescription>
       </DialogHeader>
 
@@ -172,7 +198,7 @@ function TransferFormContent({ onOpenChange }: { onOpenChange: (open: boolean) =
           Cancelar
         </Button>
         <Button type="button" onClick={save}>
-          Transferir
+          {preset?.submitLabel ?? 'Transferir'}
         </Button>
       </DialogFooter>
     </DialogContent>

@@ -1,5 +1,7 @@
 export type TxType = 'income' | 'expense'
 
+export type WalletKind = 'account' | 'card'
+
 export interface Category {
   id: string
   name: string
@@ -11,6 +13,9 @@ export interface Wallet {
   id: string
   name: string
   color: string
+  kind: WalletKind
+  closingDay: number | null
+  dueDay: number | null
   initialBalance: number
 }
 

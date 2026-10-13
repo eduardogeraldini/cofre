@@ -18,7 +18,14 @@ export function readStateSnapshot(): AppState | null {
     }
     return {
       ...parsed,
-      wallets: Array.isArray(parsed.wallets) ? parsed.wallets : [],
+      wallets: Array.isArray(parsed.wallets)
+        ? parsed.wallets.map((wallet) => ({
+            ...wallet,
+            kind: wallet.kind === 'card' ? 'card' : 'account',
+            closingDay: wallet.closingDay ?? null,
+            dueDay: wallet.dueDay ?? null,
+          }))
+        : [],
       projects: Array.isArray(parsed.projects) ? parsed.projects : [],
       transfers: Array.isArray(parsed.transfers) ? parsed.transfers : [],
     } as AppState

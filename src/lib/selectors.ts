@@ -1,5 +1,5 @@
 import type { AppState, CategorySummary, MonthPoint, Transaction, TxType, Wallet } from '@/types'
-import { lastMonthKeys, monthKey, monthLabel, previousMonthKey } from '@/lib/format'
+import { lastMonthKeys, monthKey, monthLabel, previousMonthKey, toISODate } from '@/lib/format'
 
 export function transactionsInMonth(transactions: Transaction[], key: string): Transaction[] {
   return transactions.filter((tx) => monthKey(tx.date) === key)
@@ -32,6 +32,59 @@ export function walletBalance(state: AppState, walletId: string): number {
     if (transfer.fromWalletId === walletId) total -= transfer.amount
   }
   return total
+}
+
+export function openInvoice(state: AppState, walletId: string): number {
+  const wallet = state.wallets.find((item) => item.id === walletId)
+  if (!wallet || wallet.kind !== 'card') return 0
+  const balance = walletBalance(state, walletId)
+  return balance < 0 ? -balance : 0
+}
+
+export function lastClosingDate(day: number, from = new Date()): string {
+  const thisMonth = new Date(from.getFullYear(), from.getMonth(), day)
+  const candidate = thisMonth > from ? new Date(from.getFullYear(), from.getMonth() - 1, day) : thisMonth
+  return toISODate(candidate)
+}
+
+export function nextDueDate(day: number, from = new Date()): string {
+  const thisMonth = new Date(from.getFullYear(), from.getMonth(), day)
+  const candidate = thisMonth >= from ? thisMonth : new Date(from.getFullYear(), from.getMonth() + 1, day)
+  return toISODate(candidate)
+}
+
+export function daysUntil(iso: string, from = new Date()): number {
+  const target = new Date(`${iso}T00:00:00`)
+  const base = new Date(toISODate(from))
+  return Math.round((target.getTime() - base.getTime()) / 86_400_000)
+}
+
+export function invoiceCutoff(state: AppState, walletId: string): string | null {
+  const wallet = state.wallets.find((item) => item.id === walletId)
+  if (!wallet || wallet.kind !== 'card') return null
+  if (wallet.closingDay != null) return lastClosingDate(wallet.closingDay)
+  let latest: string | null = null
+  for (const transfer of state.transfers) {
+    if (transfer.toWalletId !== walletId) continue
+    if (!latest || transfer.date > latest) latest = transfer.date
+  }
+  return latest
+}
+
+export function invoicePurchases(state: AppState, walletId: string): Transaction[] {
+  const cutoff = invoiceCutoff(state, walletId)
+  return state.transactions
+    .filter((tx) => tx.walletId === walletId && tx.type === 'expense')
+    .filter((tx) => !cutoff || tx.date > cutoff)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+}
+
+export function invoicePayments(state: AppState, walletId: string): number {
+  const cutoff = invoiceCutoff(state, walletId)
+  return state.transfers
+    .filter((transfer) => transfer.toWalletId === walletId)
+    .filter((transfer) => !cutoff || transfer.date > cutoff)
+    .reduce((total, transfer) => total + transfer.amount, 0)
 }
 
 export function totalWealth(state: AppState): number {

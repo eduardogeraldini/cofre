@@ -21,6 +21,9 @@ interface WalletRow {
   id: string
   name: string
   color: string
+  kind: string | null
+  closing_day: number | null
+  due_day: number | null
   initial_balance: number | string
 }
 
@@ -68,7 +71,15 @@ function fromCategoryRow(row: CategoryRow): Category {
 }
 
 function fromWalletRow(row: WalletRow): Wallet {
-  return { id: row.id, name: row.name, color: row.color, initialBalance: Number(row.initial_balance) }
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    kind: row.kind === 'card' ? 'card' : 'account',
+    closingDay: row.closing_day ?? null,
+    dueDay: row.due_day ?? null,
+    initialBalance: Number(row.initial_balance),
+  }
 }
 
 function fromProjectRow(row: ProjectRow): Project {
@@ -115,6 +126,9 @@ function toWalletRow(userId: string, wallet: Wallet) {
     id: wallet.id,
     name: wallet.name,
     color: wallet.color,
+    kind: wallet.kind,
+    closing_day: wallet.closingDay,
+    due_day: wallet.dueDay,
     initial_balance: wallet.initialBalance,
   }
 }
@@ -168,7 +182,10 @@ export async function loadRemoteState(userId: string): Promise<AppState | null> 
   const [categories, wallets, projects, transfers, transactions, budgets, settings] =
     await Promise.all([
       db.from('categories').select('id, name, type, icon').eq('user_id', userId),
-      db.from('wallets').select('id, name, color, initial_balance').eq('user_id', userId),
+      db
+        .from('wallets')
+        .select('id, name, color, kind, closing_day, due_day, initial_balance')
+        .eq('user_id', userId),
       db.from('projects').select('id, name').eq('user_id', userId),
       db
         .from('transfers')

@@ -23,6 +23,9 @@ create table public.wallets (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 60),
   color text not null default 'indigo',
+  kind text not null default 'account' check (kind in ('account', 'card')),
+  closing_day smallint check (closing_day between 1 and 28),
+  due_day smallint check (due_day between 1 and 28),
   initial_balance double precision not null default 0,
   created_at timestamptz not null default now()
 );

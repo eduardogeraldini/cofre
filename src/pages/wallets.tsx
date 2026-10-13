@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import {
   ArrowLeftRight,
+  CalendarClock,
   MoreHorizontal,
   Pencil,
   Plus,
+  ReceiptText,
   Trash2,
   WalletCards,
 } from 'lucide-react'
@@ -26,12 +28,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/empty-state'
+import { InvoiceStatementDialog } from '@/components/invoice-statement-dialog'
 import { Money } from '@/components/money'
 import { PageHeader } from '@/components/page-header'
-import { TransferFormDialog } from '@/components/transfer-form-dialog'
+import { TransferFormDialog, type TransferPreset } from '@/components/transfer-form-dialog'
 import { WalletFormDialog } from '@/components/wallet-form-dialog'
 import { monthKeyOf, relativeDay } from '@/lib/format'
-import { totalWealth, walletBalance, walletMonthFlow } from '@/lib/selectors'
+import {
+  daysUntil,
+  nextDueDate,
+  openInvoice,
+  totalWealth,
+  walletBalance,
+  walletMonthFlow,
+} from '@/lib/selectors'
 import { walletDotClass } from '@/lib/wallet-colors'
 import { useBudget } from '@/store/budget-context'
 import type { AppState, Wallet } from '@/types'
@@ -57,17 +67,26 @@ function lastMovement(state: AppState, walletId: string): string | null {
 function WalletCard({
   wallet,
   onEdit,
+  onPayInvoice,
+  onStatement,
 }: {
   wallet: Wallet
   onEdit: (wallet: Wallet) => void
+  onPayInvoice: (wallet: Wallet, invoice: number) => void
+  onStatement: (wallet: Wallet) => void
 }) {
   const { state, dispatch } = useBudget()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
   const balance = walletBalance(state, wallet.id)
+  const invoice = openInvoice(state, wallet.id)
   const flow = walletMonthFlow(state, wallet.id, CURRENT_MONTH)
   const last = lastMovement(state, wallet.id)
+  const isCard = wallet.kind === 'card'
+  const dueIso =
+    isCard && wallet.dueDay != null && invoice > 0 ? nextDueDate(wallet.dueDay) : null
+  const dueIn = dueIso ? daysUntil(dueIso) : null
 
   const remove = () => {
     dispatch({ type: 'wallet/delete', id: wallet.id })
@@ -123,14 +142,54 @@ function WalletCard({
         </div>
 
         <div>
-          <Money value={balance} className="font-display text-2xl font-bold tracking-[-0.03em]" />
+          {isCard ? (
+            <p className="text-overline">{invoice > 0 ? 'Fatura aberta' : 'Saldo'}</p>
+          ) : null}
+          <Money
+            value={invoice > 0 ? invoice : balance}
+            className="font-display text-2xl font-bold tracking-[-0.03em]"
+          />
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span>
               No mês: <Money value={flow.income} className="inline text-success" /> entrada ·{' '}
               <Money value={flow.expense} className="inline" /> saída
             </span>
           </div>
+          {dueIso && dueIn != null ? (
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <CalendarClock className="size-3.5" />
+              {dueIn === 0
+                ? 'Vence hoje'
+                : dueIn === 1
+                  ? 'Vence amanhã'
+                  : `Vence em ${dueIn} dias (${relativeDay(dueIso)})`}
+            </p>
+          ) : null}
         </div>
+
+        {isCard ? (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => onStatement(wallet)}
+            >
+              <ReceiptText />
+              Extrato
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="flex-1"
+              disabled={invoice <= 0}
+              onClick={() => onPayInvoice(wallet, invoice)}
+            >
+              Pagar fatura
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -159,6 +218,8 @@ export function WalletsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Wallet | null>(null)
   const [transferOpen, setTransferOpen] = useState(false)
+  const [transferPreset, setTransferPreset] = useState<TransferPreset | null>(null)
+  const [statementWallet, setStatementWallet] = useState<Wallet | null>(null)
   const [transferConfirm, setTransferConfirm] = useState<string | null>(null)
 
   const wealth = totalWealth(state)
@@ -176,6 +237,29 @@ export function WalletsPage() {
     setFormOpen(true)
   }
 
+  const openTransfer = () => {
+    setTransferPreset(null)
+    setTransferOpen(true)
+  }
+
+  const payInvoice = (wallet: Wallet, invoice: number) => {
+    const source =
+      state.wallets.find((item) => item.kind === 'account' && item.id !== wallet.id) ?? null
+    setStatementWallet(null)
+    setTransferPreset({
+      kind: 'payment',
+      fromWalletId: source?.id,
+      toWalletId: wallet.id,
+      amount: invoice,
+      note: `Pagamento da fatura ${wallet.name}`.trim(),
+      title: 'Pagar fatura',
+      submitLabel: 'Pagar fatura',
+    })
+    setTransferOpen(true)
+  }
+
+  const openStatement = (wallet: Wallet) => setStatementWallet(wallet)
+
   const walletName = (id: string) => state.wallets.find((wallet) => wallet.id === id)?.name ?? '—'
 
   const removeTransfer = (id: string) => {
@@ -188,10 +272,10 @@ export function WalletsPage() {
       <PageHeader
         overline="Contas"
         title="Carteiras"
-        description="Saldos por conta e dinheiro físico, com transferências entre carteiras."
+        description="Contas, dinheiro e cartões de crédito — com transferências entre carteiras."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setTransferOpen(true)}>
+            <Button variant="outline" onClick={openTransfer}>
               <ArrowLeftRight />
               Transferir
             </Button>
@@ -235,7 +319,13 @@ export function WalletsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {state.wallets.map((wallet) => (
-            <WalletCard key={wallet.id} wallet={wallet} onEdit={openEdit} />
+            <WalletCard
+              key={wallet.id}
+              wallet={wallet}
+              onEdit={openEdit}
+              onPayInvoice={payInvoice}
+              onStatement={openStatement}
+            />
           ))}
         </div>
       )}
@@ -244,49 +334,76 @@ export function WalletsPage() {
         <Card className="gap-0">
           <CardHeader className="border-b border-border pb-4">
             <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
-              Transferências recentes
+              Movimentações recentes
             </CardTitle>
-            <CardDescription>Movimentos entre carteiras não afetam receitas e despesas.</CardDescription>
+            <CardDescription>
+              Pagamentos de fatura e transferências entre carteiras não afetam receitas e despesas.
+            </CardDescription>
           </CardHeader>
           <CardContent className="px-0">
             <ul className="divide-y divide-border">
-              {recentTransfers.map((transfer) => (
-                <li
-                  key={transfer.id}
-                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <ArrowLeftRight className="size-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {walletName(transfer.fromWalletId)} → {walletName(transfer.toWalletId)}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {transfer.note ? `${transfer.note} · ` : ''}
-                      {relativeDay(transfer.date)}
-                    </p>
-                  </div>
-                  <Money value={transfer.amount} className="w-28 shrink-0 text-right text-sm font-medium" />
-                  <div className="flex w-8 shrink-0 justify-end">
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label="Excluir transferência"
-                      onClick={() => setTransferConfirm(transfer.id)}
-                    >
-                      <Trash2 />
-                    </Button>
-                  </div>
-                </li>
-              ))}
+              {recentTransfers.map((transfer) => {
+                const destination = state.wallets.find(
+                  (wallet) => wallet.id === transfer.toWalletId,
+                )
+                const isPayment = destination?.kind === 'card'
+                return (
+                  <li
+                    key={transfer.id}
+                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
+                  >
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      {isPayment ? (
+                        <ReceiptText className="size-4" />
+                      ) : (
+                        <ArrowLeftRight className="size-4" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {isPayment
+                          ? `Pagamento · ${destination?.name ?? '—'}`
+                          : `${walletName(transfer.fromWalletId)} → ${walletName(transfer.toWalletId)}`}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {transfer.note ? `${transfer.note} · ` : ''}
+                        {relativeDay(transfer.date)}
+                      </p>
+                    </div>
+                    <Money value={transfer.amount} className="w-28 shrink-0 text-right text-sm font-medium" />
+                    <div className="flex w-8 shrink-0 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label="Excluir transferência"
+                        onClick={() => setTransferConfirm(transfer.id)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           </CardContent>
         </Card>
       ) : null}
 
       <WalletFormDialog open={formOpen} onOpenChange={setFormOpen} wallet={editing} />
-      <TransferFormDialog open={transferOpen} onOpenChange={setTransferOpen} />
+      <TransferFormDialog
+        open={transferOpen}
+        onOpenChange={(open) => {
+          setTransferOpen(open)
+          if (!open) setTransferPreset(null)
+        }}
+        preset={transferPreset}
+      />
+      <InvoiceStatementDialog
+        open={statementWallet !== null}
+        onOpenChange={(open) => !open && setStatementWallet(null)}
+        wallet={statementWallet}
+        onPay={(wallet) => payInvoice(wallet, openInvoice(state, wallet.id))}
+      />
 
       <AlertDialog open={transferConfirm !== null} onOpenChange={(open) => !open && setTransferConfirm(null)}>
         <AlertDialogContent>
