@@ -74,10 +74,6 @@ function WalletFormContent({
       setBalanceError('Saldo inicial inválido')
       return
     }
-    if (initialBalance < 0) {
-      setBalanceError('Saldo inicial não pode ser negativo')
-      return
-    }
     const closing = kind === 'card' ? parseDay(closingDay) : null
     if (closing === undefined) {
       setClosingError('Use um dia de 1 a 28, ou deixe em branco')
@@ -189,7 +185,7 @@ function WalletFormContent({
           />
           {balanceError ? <p className="text-xs text-destructive">{balanceError}</p> : null}
           <p className="text-xs text-muted-foreground">
-            Saldo de quando a carteira foi criada.
+            Saldo de quando a carteira foi criada. Negativo representa uma dívida em aberto.
           </p>
         </div>
 
