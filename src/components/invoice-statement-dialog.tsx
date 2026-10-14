@@ -1,4 +1,4 @@
-import { ReceiptText } from 'lucide-react'
+import { ArrowLeftRight, ReceiptText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -10,11 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Money } from '@/components/money'
 import { formatDate } from '@/lib/format'
-import {
-  invoiceCutoff,
-  invoicePurchases,
-  openInvoice,
-} from '@/lib/selectors'
+import { invoiceCutoff, invoicePaymentRows, invoicePurchases, openInvoice } from '@/lib/selectors'
 import { useBudget } from '@/store/budget-context'
 import type { Wallet } from '@/types'
 
@@ -56,8 +52,10 @@ function InvoiceStatementContent({
   const { state } = useBudget()
   const cutoff = invoiceCutoff(state, wallet.id)
   const purchases = invoicePurchases(state, wallet.id)
+  const payments = invoicePaymentRows(state, wallet.id)
   const invoice = openInvoice(state, wallet.id)
   const subtotal = purchases.reduce((total, tx) => total + tx.amount, 0)
+  const paidTotal = payments.reduce((total, transfer) => total + transfer.amount, 0)
 
   return (
     <DialogContent className="sm:max-w-md">
@@ -102,7 +100,43 @@ function InvoiceStatementContent({
           <span className="text-muted-foreground">Compras no período</span>
           <Money value={subtotal} className="font-semibold" />
         </div>
-        <div className="flex items-center justify-between pt-1 text-sm">
+
+        {payments.length > 0 ? (
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="text-overline">Pagamentos</p>
+            <ul className="mt-1 divide-y divide-border">
+              {payments.map((transfer) => {
+                const origin = state.wallets.find((item) => item.id === transfer.fromWalletId)
+                return (
+                  <li key={transfer.id} className="flex items-center gap-3 py-2.5">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <ArrowLeftRight className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {transfer.note || 'Pagamento'}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {origin ? `${origin.name} · ` : ''}
+                        {formatDate(transfer.date)}
+                      </p>
+                    </div>
+                    <Money
+                      value={transfer.amount}
+                      className="shrink-0 text-right text-sm font-medium"
+                    />
+                  </li>
+                )
+              })}
+            </ul>
+            <div className="flex items-center justify-between pt-1 text-sm">
+              <span className="text-muted-foreground">Total pago</span>
+              <Money value={paidTotal} className="font-semibold" />
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
           <span className="text-muted-foreground">Fatura aberta</span>
           <Money value={invoice} className="font-semibold" />
         </div>

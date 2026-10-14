@@ -9,8 +9,9 @@ import {
   expensesByWallet,
   expenseBreakdown,
   invoiceCutoff,
-  invoicePurchases,
+  invoicePaymentRows,
   invoicePayments,
+  invoicePurchases,
   lastClosingDate,
   nextDueDate,
   openInvoice,
@@ -337,5 +338,20 @@ describe('invoiceCutoff / invoicePurchases / invoicePayments', () => {
   it('sem fechamento, o último pagamento é só o corte (não conta)', () => {
     const state = makeInvoiceState()
     expect(invoicePayments(state, 'open')).toBe(0)
+  })
+
+  it('extrato de pagamentos lista por fechamento quando definido', () => {
+    const state = makeInvoiceState()
+    expect(invoicePaymentRows(state, 'card').map((item) => item.id)).toEqual(['tf2'])
+  })
+
+  it('extrato de pagamentos sem fechamento lista todos', () => {
+    const state = makeInvoiceState()
+    expect(invoicePaymentRows(state, 'open').map((item) => item.id)).toEqual(['tf1'])
+  })
+
+  it('extrato de pagamentos ignora conta não-cartão', () => {
+    const state = makeInvoiceState()
+    expect(invoicePaymentRows(state, 'acc')).toEqual([])
   })
 })

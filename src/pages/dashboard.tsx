@@ -20,8 +20,8 @@ import { StatCard } from '@/components/stat-card'
 import { TransactionRow } from '@/components/transaction-row'
 import { TransactionFormDialog } from '@/components/transaction-form-dialog'
 import {
-  categorySummaries,
   budgetUsage,
+  categorySummaries,
   changeAgainstPrevious,
   savingsRate,
   sumByType,

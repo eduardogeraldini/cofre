@@ -1,4 +1,12 @@
-import type { AppState, CategorySummary, MonthPoint, Transaction, TxType, Wallet } from '@/types'
+import type {
+  AppState,
+  CategorySummary,
+  MonthPoint,
+  Transaction,
+  Transfer,
+  TxType,
+  Wallet,
+} from '@/types'
 import { lastMonthKeys, monthKey, monthLabel, previousMonthKey, toISODate } from '@/lib/format'
 
 export function transactionsInMonth(transactions: Transaction[], key: string): Transaction[] {
@@ -85,6 +93,16 @@ export function invoicePayments(state: AppState, walletId: string): number {
     .filter((transfer) => transfer.toWalletId === walletId)
     .filter((transfer) => !cutoff || transfer.date > cutoff)
     .reduce((total, transfer) => total + transfer.amount, 0)
+}
+
+export function invoicePaymentRows(state: AppState, walletId: string): Transfer[] {
+  const wallet = state.wallets.find((item) => item.id === walletId)
+  if (!wallet || wallet.kind !== 'card') return []
+  const cutoff = wallet.closingDay != null ? lastClosingDate(wallet.closingDay) : null
+  return state.transfers
+    .filter((transfer) => transfer.toWalletId === walletId)
+    .filter((transfer) => !cutoff || transfer.date > cutoff)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
 }
 
 export function totalWealth(state: AppState): number {
