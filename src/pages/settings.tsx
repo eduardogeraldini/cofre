@@ -54,6 +54,7 @@ const TABS = [
   { value: 'aparencia', label: 'Aparência' },
   { value: 'privacidade', label: 'Privacidade' },
   { value: 'dados', label: 'Dados' },
+  { value: 'projetos', label: 'Projetos' },
   { value: 'integracao', label: 'Integração' },
 ] as const
 
@@ -458,7 +459,11 @@ export function SettingsPage() {
                 </dl>
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
 
+        <TabsContent value="projetos">
+          <div className="flex flex-col gap-6">
             <Card className="gap-0">
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="font-display text-base font-bold tracking-[-0.03em]">
