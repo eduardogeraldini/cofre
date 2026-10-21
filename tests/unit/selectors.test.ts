@@ -5,8 +5,11 @@ import {
   budgetUsage,
   categorySummaries,
   changeAgainstPrevious,
+  changeAgainstRange,
   daysUntil,
+  expenseBreakdownFrom,
   expensesByWallet,
+  expensesByWalletFrom,
   expenseBreakdown,
   invoiceCutoff,
   invoicePaymentRows,
@@ -20,6 +23,7 @@ import {
   sumByType,
   totalBalance,
   transactionsInMonth,
+  transactionsInRange,
   walletBalance,
 } from '@/lib/selectors'
 
@@ -353,5 +357,60 @@ describe('invoiceCutoff / invoicePurchases / invoicePayments', () => {
   it('extrato de pagamentos ignora conta não-cartão', () => {
     const state = makeInvoiceState()
     expect(invoicePaymentRows(state, 'acc')).toEqual([])
+  })
+})
+
+describe('período arbitrário', () => {
+  it('transactionsInRange filtra por intervalo de datas', () => {
+    expect(transactionsInRange(txs, '2026-10-05', '2026-10-20').map((t) => t.id)).toEqual([
+      'a',
+      'b',
+      'd',
+    ])
+    expect(transactionsInRange(txs, '2026-10-05', '2026-10-09').map((t) => t.id)).toEqual(['a'])
+  })
+
+  it('transactionsInRange inverte limites trocados', () => {
+    expect(transactionsInRange(txs, '2026-10-20', '2026-10-05').map((t) => t.id)).toEqual([
+      'a',
+      'b',
+      'd',
+    ])
+  })
+
+  it('changeAgainstRange compara com o período anterior de mesma duração', () => {
+    const delta = changeAgainstRange(makeState(), '2026-10-01', '2026-10-31')
+    expect(delta.expense).toBeCloseTo(75)
+    expect(delta.income).toBe(0)
+  })
+
+  it('changeAgainstRange com receita anterior calcula percentual', () => {
+    const state = makeState()
+    state.transactions = [
+      tx('x1', '2026-09-01', 'income', 1000),
+      tx('x2', '2026-10-01', 'income', 1200),
+    ]
+    const delta = changeAgainstRange(state, '2026-10-01', '2026-10-31')
+    expect(delta.income).toBeCloseTo(20)
+    expect(delta.expense).toBe(0)
+  })
+
+  it('expenseBreakdownFrom agrega apenas as despesas recebidas', () => {
+    const inRange = transactionsInRange(txs, '2026-10-01', '2026-10-31')
+    const breakdown = expenseBreakdownFrom(inRange, makeState().categories, 'expense')
+    expect(breakdown.map((entry) => [entry.categoryId, entry.value])).toEqual([
+      ['cat-food', 100],
+      ['cat-fun', 40],
+    ])
+  })
+
+  it('expensesByWalletFrom separa carteira e solta', () => {
+    const state = makeState()
+    const inRange = transactionsInRange(txs, '2026-10-01', '2026-10-31')
+    const rows = expensesByWalletFrom(state, inRange)
+    expect(rows.map((row) => [row.wallet?.id ?? null, row.total])).toEqual([
+      ['w1', 100],
+      [null, 40],
+    ])
   })
 })

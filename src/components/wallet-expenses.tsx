@@ -3,20 +3,21 @@ import { CategoryDonut, type DonutEntry } from '@/components/charts/category-don
 import { rampColor } from '@/components/charts/chart-colors'
 import { EmptyState } from '@/components/empty-state'
 import { Money } from '@/components/money'
-import { expensesByWallet } from '@/lib/selectors'
+import { expensesByWalletFrom, transactionsInRange } from '@/lib/selectors'
 import { walletHex } from '@/lib/wallet-colors'
 import { useBudget } from '@/store/budget-context'
 
-export function WalletExpenses({ month }: { month: string }) {
+export function WalletExpenses({ from, to }: { from: string; to: string }) {
   const { state } = useBudget()
-  const rows = expensesByWallet(state, month)
+  const txs = transactionsInRange(state.transactions, from, to)
+  const rows = expensesByWalletFrom(state, txs)
   const total = rows.reduce((sum, row) => sum + row.total, 0)
 
   if (rows.length === 0) {
     return (
       <EmptyState
         icon={<WalletCards className="size-6" />}
-        title="Sem despesas no mês"
+        title="Sem despesas no período"
         description="Nenhuma saída registrada neste período."
       />
     )

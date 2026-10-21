@@ -13,6 +13,16 @@ export function transactionsInMonth(transactions: Transaction[], key: string): T
   return transactions.filter((tx) => monthKey(tx.date) === key)
 }
 
+export function transactionsInRange(
+  transactions: Transaction[],
+  from: string,
+  to: string,
+): Transaction[] {
+  const start = from <= to ? from : to
+  const end = from <= to ? to : from
+  return transactions.filter((tx) => tx.date >= start && tx.date <= end)
+}
+
 export function sumByType(transactions: Transaction[], type: 'income' | 'expense'): number {
   return transactions
     .filter((tx) => tx.type === type)
@@ -121,11 +131,11 @@ export interface WalletExpense {
   total: number
 }
 
-export function expensesByWallet(state: AppState, key: string): WalletExpense[] {
+export function expensesByWalletFrom(state: AppState, txs: Transaction[]): WalletExpense[] {
   const byId = new Map<string, number>()
   let loose = 0
-  for (const tx of state.transactions) {
-    if (tx.type !== 'expense' || monthKey(tx.date) !== key) continue
+  for (const tx of txs) {
+    if (tx.type !== 'expense') continue
     if (tx.walletId) {
       byId.set(tx.walletId, (byId.get(tx.walletId) ?? 0) + tx.amount)
     } else {
@@ -141,6 +151,10 @@ export function expensesByWallet(state: AppState, key: string): WalletExpense[] 
   for (const total of byId.values()) loose += total
   if (loose > 0) rows.push({ wallet: null, total: loose })
   return rows.sort((a, b) => b.total - a.total)
+}
+
+export function expensesByWallet(state: AppState, key: string): WalletExpense[] {
+  return expensesByWalletFrom(state, transactionsInMonth(state.transactions, key))
 }
 
 export function balanceBefore(transactions: Transaction[], key: string): number {
@@ -184,13 +198,11 @@ export function categorySummaries(state: AppState, key: string): CategorySummary
     .sort((a, b) => b.spent - a.spent)
 }
 
-export function expenseBreakdown(
-  transactions: Transaction[],
-  key: string,
+export function expenseBreakdownFrom(
+  txs: Transaction[],
   categories: AppState['categories'],
   type: TxType = 'expense',
 ) {
-  const txs = transactionsInMonth(transactions, key)
   const totals = new Map<string, number>()
 
   for (const tx of txs) {
@@ -206,6 +218,15 @@ export function expenseBreakdown(
     }))
     .filter((entry) => Boolean(entry.category))
     .sort((a, b) => b.value - a.value)
+}
+
+export function expenseBreakdown(
+  transactions: Transaction[],
+  key: string,
+  categories: AppState['categories'],
+  type: TxType = 'expense',
+) {
+  return expenseBreakdownFrom(transactionsInMonth(transactions, key), categories, type)
 }
 
 export function balanceSeries(state: AppState, count = 12) {
@@ -234,14 +255,37 @@ export function changeAgainstPrevious(state: AppState, key: string) {
   const previous = previousMonthKey(key)
   const currentTxs = transactionsInMonth(state.transactions, key)
   const previousTxs = transactionsInMonth(state.transactions, previous)
+  return deltaBetween(currentTxs, previousTxs)
+}
 
+export function changeAgainstRange(state: AppState, from: string, to: string) {
+  const start = from <= to ? from : to
+  const end = from <= to ? to : from
+  const startDay = new Date(`${start}T00:00:00`)
+  const endDay = new Date(`${end}T00:00:00`)
+  const span = Math.round((endDay.getTime() - startDay.getTime()) / 86_400_000)
+
+  const prevEnd = new Date(startDay)
+  prevEnd.setDate(prevEnd.getDate() - 1)
+  const prevStart = new Date(prevEnd)
+  prevStart.setDate(prevStart.getDate() - span)
+
+  const currentTxs = transactionsInRange(state.transactions, start, end)
+  const previousTxs = transactionsInRange(
+    state.transactions,
+    toISODate(prevStart),
+    toISODate(prevEnd),
+  )
+  return deltaBetween(currentTxs, previousTxs)
+}
+
+function deltaBetween(currentTxs: Transaction[], previousTxs: Transaction[]) {
   const delta = (type: 'income' | 'expense') => {
     const now = sumByType(currentTxs, type)
     const before = sumByType(previousTxs, type)
     if (before === 0) return 0
     return ((now - before) / before) * 100
   }
-
   return { income: delta('income'), expense: delta('expense') }
 }
 
